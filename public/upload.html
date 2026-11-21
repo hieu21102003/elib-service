@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>elib — Upload tài liệu (trang tạm Giai đoạn 1)</title>
+<style>
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f4f6f5;color:#14201b}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+  .banner{background:#0a3d2c;color:#fff;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+  .banner h1{font-size:20px;margin:0 0 4px}
+  .banner p{margin:0;font-size:13px;opacity:.9}
+  .card{background:#fff;border:1px solid #dde5e0;border-radius:10px;padding:18px;margin-bottom:16px}
+  label{display:block;font-size:13px;font-weight:600;margin:12px 0 4px}
+  input,select,textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #c9d4ce;border-radius:7px;font:inherit}
+  button{background:#c75b2a;color:#fff;border:0;border-radius:7px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+  button.secondary{background:#0a3d2c}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .msg{padding:10px 12px;border-radius:7px;margin-top:12px;font-size:14px;display:none}
+  .msg.error{display:block;background:#fdecec;color:#8c1d18;border:1px solid #f3c2c0}
+  .msg.ok{display:block;background:#e8f5ee;color:#14532d;border:1px solid #bfe3cd}
+  .progress{height:10px;background:#e5ebe8;border-radius:6px;overflow:hidden;margin-top:12px;display:none}
+  .progress>div{height:100%;width:0;background:#0a3d2c;transition:width .15s}
+  .hint{font-size:12px;color:#5b6b62}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner">
+    <h1>elib — Upload tài liệu</h1>
+    <p>Trang tạm của dịch vụ elib (Giai đoạn 1). Giao diện chính thức sẽ nằm trong Smart.Rail sau khi tích hợp.</p>
+  </div>
+
+  <div class="card" id="login-card">
+    <h2>Đăng nhập</h2>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username">
+    <label for="password">Mật khẩu</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <p><button id="login-btn" type="button">Đăng nhập</button></p>
+    <div class="msg" id="login-msg"></div>
+  </div>
+
+  <div class="card" id="upload-card" hidden>
+    <p>Xin chào <strong id="who"></strong> (<span id="role"></span>)
+      <button id="logout-btn" class="secondary" type="button" style="float:right">Đăng xuất</button></p>
+    <div id="no-permission" hidden>
+      <p><strong>Bạn không có quyền upload.</strong> Chỉ tài khoản admin hoặc editor mới được upload tài liệu.</p>
+    </div>
+    <form id="upload-form">
+      <label for="file">File tài liệu *</label>
+      <input id="file" type="file" required>
+      <p class="hint">Chấp nhận: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG/WEBP, TXT, DWG. Tối đa theo cấu hình server (mặc định 200 MB).</p>
+      <label for="title">Tiêu đề *</label>
+      <input id="title" type="text" required maxlength="300">
+      <label for="description">Mô tả</label>
+      <textarea id="description" rows="3"></textarea>
+      <div class="row">
+        <div>
+          <label for="category">Danh mục</label>
+          <select id="category"><option value="">— Chưa chọn —</option></select>
+        </div>
+        <div>
+          <label for="doc_type">Loại tài liệu</label>
+          <input id="doc_type" type="text" placeholder="Ví dụ: Tiêu chuẩn, Báo cáo, Bản vẽ...">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="language">Ngôn ngữ</label>
+          <input id="language" type="text" placeholder="Ví dụ: vi, en">
+        </div>
+        <div>
+          <label for="tags">Tag (cách nhau bằng dấu phẩy)</label>
+          <input id="tags" type="text" placeholder="Ví dụ: đường sắt, tín hiệu">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="visibility">Mức hiển thị</label>
+          <select id="visibility">
+            <option value="internal">Nội bộ (internal)</option>
+            <option value="public">Công khai (public)</option>
+            <option value="private">Riêng tư (private)</option>
+          </select>
+        </div>
+        <div>
+          <label for="status">Trạng thái</label>
+          <select id="status">
+            <option value="draft">Nháp (draft)</option>
+            <option value="published">Đã xuất bản (published)</option>
+            <option value="hidden">Ẩn (hidden)</option>
+          </select>
+        </div>
+      </div>
+      <p><button id="submit-btn" type="submit">Upload tài liệu</button></p>
+      <div class="progress" id="progress"><div id="progress-bar"></div></div>
+      <p class="hint" id="progress-text"></p>
+      <div class="msg" id="upload-msg"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+function showMsg(el, text, ok) {
+  el.className = 'msg ' + (ok ? 'ok' : 'error');
+  el.textContent = text;
+}
+async function checkMe() {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) return;
+    const data = await res.json();
+    $('login-card').hidden = true;
+    $('upload-card').hidden = false;
+    $('who').textContent = data.user.email;
+    $('role').textContent = data.user.role;
+    const canUpload = data.user.role === 'admin' || data.user.role === 'editor';
+    $('no-permission').hidden = canUpload;
+    $('upload-form').hidden = !canUpload;
+    if (canUpload) loadCategories();
+  } catch {}
+}
+async function loadCategories() {
+  try {
+    const res = await fetch('/api/categories');
+    if (!res.ok) return;
+    const data = await res.json();
+    const sel = $('category');
+    const add = (nodes, depth) => {
+      for (const n of nodes) {
+        const opt = document.createElement('option');
+        opt.value = n.id;
+        opt.textContent = '— '.repeat(depth) + n.name;
+        sel.appendChild(opt);
+        add(n.children || [], depth + 1);
+      }
+    };
+    add(data.data || [], 0);
+  } catch {}
+}
+$('login-btn').addEventListener('click', async () => {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: $('email').value, password: $('password').value })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { showMsg($('login-msg'), data.error?.message || 'Đăng nhập thất bại', false); return; }
+  showMsg($('login-msg'), 'Đăng nhập thành công', true);
+  checkMe();
+});
+$('logout-btn').addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  location.reload();
+});
+
+function doUpload(force) {
+  const fileInput = $('file');
+  if (!fileInput.files.length) { showMsg($('upload-msg'), 'Chưa chọn file để upload.', false); return; }
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  fd.append('title', $('title').value);
+  fd.append('description', $('description').value);
+  if ($('category').value) fd.append('category_id', $('category').value);
+  fd.append('doc_type', $('doc_type').value);
+  fd.append('language', $('language').value);
+  fd.append('tags', $('tags').value);
+  fd.append('visibility', $('visibility').value);
+  fd.append('status', $('status').value);
+  if (force) fd.append('force', 'true');
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/documents');
+  $('submit-btn').disabled = true;
+  $('progress').style.display = 'block';
+  xhr.upload.addEventListener('progress', (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      $('progress-bar').style.width = pct + '%';
+      $('progress-text').textContent = 'Đang upload... ' + pct + '%';
+    }
+  });
+  xhr.addEventListener('load', () => {
+    $('submit-btn').disabled = false;
+    let data = {};
+    try { data = JSON.parse(xhr.responseText); } catch {}
+    if (xhr.status === 201) {
+      showMsg($('upload-msg'), 'Upload thành công: ' + data.document.title + ' (slug: ' + data.document.slug + ')', true);
+      $('progress-text').textContent = '';
+      return;
+    }
+    if (xhr.status === 409 && data.error?.code === 'DUPLICATE_FILE') {
+      const ok = confirm(data.error.message + '\n\nBấm OK để vẫn tạo mới, Cancel để bỏ qua.');
+      if (ok) doUpload(true);
+      else showMsg($('upload-msg'), 'Đã bỏ qua vì file đã tồn tại.', false);
+      return;
+    }
+    showMsg($('upload-msg'), data.error?.message || ('Upload thất bại (mã ' + xhr.status + ')'), false);
+  });
+  xhr.addEventListener('error', () => {
+    $('submit-btn').disabled = false;
+    showMsg($('upload-msg'), 'Không kết nối được tới server. Vui lòng thử lại.', false);
+  });
+  xhr.send(fd);
+}
+$('upload-form').addEventListener('submit', (e) => { e.preventDefault(); doUpload(false); });
+checkMe();
+</script>
+</body>
+</html>
