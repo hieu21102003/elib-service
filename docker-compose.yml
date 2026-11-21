@@ -1,0 +1,84 @@
+# elib-service — docker compose (server Linux của công ty, Giai đoạn 1)
+#
+# Cách dùng (chi tiết trong README.md, mục "Deploy trên server (Docker)"):
+#   cp .env.example .env   # rồi sửa POSTGRES_PASSWORD, SESSION_SECRET...
+#   docker compose up -d --build
+#   docker compose exec elib npm run migrate
+#   docker compose exec elib npm run seed:categories
+#   docker compose exec elib npm run create-admin -- --email admin@congty.vn --password 'MatKhauManh' --name 'Quản trị'
+#   curl http://127.0.0.1:3200/health
+#
+# elib chỉ nghe 127.0.0.1:3200 trên host — KHÔNG mở thẳng ra Internet.
+# Người dùng vào qua Reverse_proxy (proxy /api/elib/*) đứng trước.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: elib-postgres
+    restart: unless-stopped
+    environment:
+      # ĐỔI mật khẩu này trong file .env trước khi chạy thật (giá trị dưới chỉ là mặc định).
+      POSTGRES_USER: ${POSTGRES_USER:-elib}
+      POSTGRES_DB: ${POSTGRES_DB:-elib}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Không mở cổng 5432 ra host; elib nối qua mạng nội bộ của compose.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-elib} -d ${POSTGRES_DB:-elib}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  elib:
+    build: .
+    image: elib-service:latest
+    container_name: elib-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3200"
+      # DATABASE_URL dựng từ các biến POSTGRES_* ở trên, trỏ tới service postgres.
+      # Lưu ý: mật khẩu nên dùng ký tự an toàn cho URL (chữ/số) để tránh lỗi parse.
+      DATABASE_URL: postgres://${POSTGRES_USER:-elib}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-elib}
+      # File lưu trong volume elib_storage (xem dưới). Muốn lưu thẳng lên ổ đĩa
+      # lớn của máy (ví dụ ổ 1.5TB) thì thay volume bằng bind-mount, ví dụ:
+      #   - /data/elib-storage:/data/storage
+      # và chạy: sudo chown -R 1000:1000 /data/elib-storage  (uid của user node)
+      STORAGE_ROOT: /data/storage
+      # ĐỔI thành chuỗi ngẫu nhiên dài trong file .env.
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-string}
+      # true khi người dùng vào qua HTTPS (Reverse_proxy + Caddy/nginx).
+      # Chỉ đặt false khi test HTTP thuần trong LAN.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    volumes:
+      - elib_storage:/data/storage
+    ports:
+      # Chỉ localhost trên host (để kiểm tra /health từ host). Reverse_proxy
+      # chạy Docker gọi elib qua mạng dùng chung elib-net bằng tên container
+      # elib-service:3200 — KHÔNG qua cổng host này. Đừng đổi thành
+      # "3200:3200" nếu không có chủ đích.
+      - "127.0.0.1:3200:3200"
+    networks:
+      - default
+      # Mạng dùng chung với Reverse_proxy (tên cố định elib-net, external):
+      # Reverse_proxy compose tạo mạng này khi `docker compose up` (hoặc tạo
+      # tay: docker network create elib-net). Reverse_proxy đặt
+      # ELIB_BASE_URL=http://elib-service:3200. PostgreSQL KHÔNG tham gia
+      # mạng này.
+      - elib-net
+    # Healthcheck đã có trong Dockerfile (GET /health bằng wget).
+
+networks:
+  elib-net:
+    external: true
+    name: elib-net
+
+volumes:
+  pgdata:
+  elib_storage:

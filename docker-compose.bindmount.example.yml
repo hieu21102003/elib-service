@@ -1,0 +1,13 @@
+# Ví dụ: đặt dữ liệu elib trên ổ/LV riêng (vd LV 500G mount tại /srv/elib)
+# Cách dùng: copy file này thành docker-compose.override.yml rồi `docker compose up -d`.
+# Chuẩn bị trên host trước:
+#   sudo mkdir -p /srv/elib/pgdata /srv/elib/storage
+#   sudo chown 70:70 /srv/elib/pgdata      # user postgres trong image postgres:16-alpine
+#   sudo chown 1000:1000 /srv/elib/storage # user node trong image elib
+services:
+  postgres:
+    volumes:
+      - /srv/elib/pgdata:/var/lib/postgresql/data
+  elib:
+    volumes:
+      - /srv/elib/storage:/data/storage

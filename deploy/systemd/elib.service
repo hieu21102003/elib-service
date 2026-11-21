@@ -1,0 +1,21 @@
+[Unit]
+Description=elib-service (Phase 1: upload tài liệu)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+# Sửa User và WorkingDirectory cho đúng máy của bạn.
+# User này phải ghi được vào STORAGE_ROOT (thư mục trên ổ 1.5TB).
+User=www-data
+WorkingDirectory=/opt/elib-service
+Environment=NODE_ENV=production
+# File .env nằm trong WorkingDirectory (app tự đọc qua dotenv).
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
