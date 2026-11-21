@@ -25,6 +25,11 @@ export interface AppConfig {
   cookieSecure: boolean;
   sessionTtlDays: number;
   logLevel: string;
+  /**
+   * Tin header X-Forwarded-For khi đứng sau Reverse_proxy/Caddy (ảnh hưởng IP
+   * dùng cho rate limit). Mặc định false; đặt TRUST_PROXY=true khi có proxy tin cậy.
+   */
+  trustProxy: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -41,7 +46,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionSecret: env.SESSION_SECRET ?? 'dev-only-change-me',
     cookieSecure: boolFromEnv('COOKIE_SECURE', false),
     sessionTtlDays: intFromEnv('SESSION_TTL_DAYS', 7),
-    logLevel: env.LOG_LEVEL ?? 'info'
+    logLevel: env.LOG_LEVEL ?? 'info',
+    trustProxy: boolFromEnv('TRUST_PROXY', false)
   };
 }
 

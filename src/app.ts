@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
+import rateLimit from '@fastify/rate-limit';
 import { readFile } from 'node:fs/promises';
 import { ZodError } from 'zod';
 import type pg from 'pg';
@@ -23,9 +24,20 @@ export async function createApp(opts: CreateAppOptions = {}) {
   const pool = opts.pool ?? createPool(cfg.databaseUrl);
   const storage = opts.storage ?? new LocalDiskStorage(cfg.storageRoot);
 
-  const app = Fastify({ logger: { level: cfg.logLevel } });
+  const app = Fastify({ logger: { level: cfg.logLevel }, trustProxy: cfg.trustProxy });
 
   await app.register(cookie);
+  // Rate limit chỉ áp dụng cho route nào khai config.rateLimit (các GET công khai);
+  // upload/login không bị ảnh hưởng. Lỗi 429 trả JSON tiếng Việt qua AppError.
+  await app.register(rateLimit, {
+    global: false,
+    errorResponseBuilder: (_request, context) =>
+      new AppError(
+        context.statusCode,
+        context.statusCode === 403 ? 'RATE_LIMIT_BANNED' : 'RATE_LIMITED',
+        'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.'
+      )
+  });
   await app.register(multipart, {
     limits: {
       fileSize: cfg.maxUploadBytes,

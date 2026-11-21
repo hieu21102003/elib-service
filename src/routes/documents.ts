@@ -8,6 +8,9 @@ import type { AppConfig } from '../config.js';
 import { withTransaction } from '../db.js';
 import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../errors.js';
 import { canDownload, canUpload } from '../auth/session.js';
+import { parseDocumentListQuery } from '../documents/list-query.js';
+import { searchPredicate } from '../documents/search.js';
+import { visibleDocumentsWhere } from '../documents/visibility.js';
 import { getCurrentUser } from './auth.js';
 import type { LocalDiskStorage } from '../storage/local-disk.js';
 import { HashAndCountTransform } from '../files/checksum.js';
@@ -29,6 +32,68 @@ const metadataSchema = z.object({
     .optional()
     .transform((v) => v === true || v === 'true' || v === '1')
 });
+
+/** Một dòng kết quả của truy vấn danh sách tài liệu (đã JOIN file mới nhất + danh mục + thẻ). */
+interface DocumentListRow {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  category_id: string | null;
+  doc_type: string | null;
+  language: string | null;
+  visibility: string;
+  status: string;
+  price: string | null;
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+  file_id: string | null;
+  file_document_id: string | null;
+  file_version: number | null;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size: string | null;
+  page_count: number | null;
+  file_created_at: Date | null;
+  category_ref_id: string | null;
+  category_name: string | null;
+  tag_names: string[] | null;
+}
+
+function mapDocumentListRow(row: DocumentListRow) {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    description: row.description,
+    category_id: row.category_id,
+    doc_type: row.doc_type,
+    language: row.language,
+    visibility: row.visibility,
+    status: row.status,
+    // price: NULL ở Giai đoạn 1; khi có giá, pg trả numeric dạng chuỗi — giữ nguyên.
+    price: row.price,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    // File phiên bản mới nhất của tài liệu; KHÔNG bao giờ trả storage_path.
+    file: row.file_id
+      ? {
+          id: row.file_id,
+          document_id: row.file_document_id,
+          version: row.file_version,
+          original_filename: row.original_filename,
+          mime_type: row.mime_type,
+          file_size: row.file_size === null ? null : Number(row.file_size),
+          page_count: row.page_count,
+          created_at: row.file_created_at
+        }
+      : null,
+    tags: row.tag_names ?? [],
+    category: row.category_ref_id ? { id: row.category_ref_id, name: row.category_name } : null
+  };
+}
 
 function parseTags(raw: string): string[] {
   const seen = new Set<string>();
@@ -239,6 +304,75 @@ export function registerDocumentRoutes(
       throw err;
     }
   });
+
+  app.get(
+    '/api/documents',
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const query = parseDocumentListQuery(request.query);
+      const user = await getCurrentUser(pool, request.cookies);
+
+      const params: unknown[] = [];
+      const where: string[] = [];
+
+      // Lọc quyền NGAY TRONG SQL — áp dụng cho cả danh sách lẫn total,
+      // tài liệu không có quyền xem không lộ qua kết quả hay số lượng.
+      const vis = visibleDocumentsWhere(user, params.length + 1);
+      where.push(vis.sql);
+      params.push(...vis.params);
+
+      const search = searchPredicate(query.q, params.length + 1);
+      if (search) {
+        where.push(search.sql);
+        params.push(...search.params);
+      }
+
+      if (query.categoryId) {
+        params.push(query.categoryId);
+        where.push(`d.category_id = $${params.length}`);
+      }
+
+      const whereSql = where.join(' AND ');
+
+      const countRes = await pool.query(
+        `SELECT COUNT(*)::int AS total FROM documents d WHERE ${whereSql}`,
+        params
+      );
+      const total = (countRes.rows[0] as { total: number }).total;
+
+      const listParams = [...params, query.limit, query.offset];
+      const listRes = await pool.query(
+        `SELECT
+           d.id, d.title, d.slug, d.description, d.category_id, d.doc_type, d.language,
+           d.visibility, d.status, d.price, d.created_by, d.created_at, d.updated_at,
+           f.id AS file_id, f.document_id AS file_document_id, f.version AS file_version,
+           f.original_filename, f.mime_type, f.file_size, f.page_count, f.created_at AS file_created_at,
+           c.id AS category_ref_id, c.name AS category_name,
+           COALESCE((
+             SELECT array_agg(t.name ORDER BY t.name)
+             FROM document_tags dt JOIN tags t ON t.id = dt.tag_id
+             WHERE dt.document_id = d.id
+           ), ARRAY[]::text[]) AS tag_names
+         FROM documents d
+         LEFT JOIN LATERAL (
+           SELECT df.id, df.document_id, df.version, df.original_filename,
+                  df.mime_type, df.file_size, df.page_count, df.created_at
+           FROM document_files df
+           WHERE df.document_id = d.id
+           ORDER BY df.version DESC, df.created_at DESC
+           LIMIT 1
+         ) f ON true
+         LEFT JOIN categories c ON c.id = d.category_id
+         WHERE ${whereSql}
+         ORDER BY d.created_at DESC
+         LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+        listParams
+      );
+
+      const data = (listRes.rows as DocumentListRow[]).map(mapDocumentListRow);
+      return reply.send({ data, total, limit: query.limit, offset: query.offset });
+    }
+  );
 
   app.get('/api/documents/:id/files/:fileId/download', async (request, reply) => {
     const { id, fileId } = request.params as { id: string; fileId: string };
