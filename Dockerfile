@@ -45,5 +45,5 @@ RUN mkdir -p /data/storage && chown node:node /data/storage
 USER node
 EXPOSE 3200
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD-SHELL wget -qO- "http://127.0.0.1:${PORT:-3200}/health" >/dev/null 2>&1 || exit 1
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3200}/health" >/dev/null 2>&1 || exit 1
 ENTRYPOINT ["node", "dist/server.js"]
