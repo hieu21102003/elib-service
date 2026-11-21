@@ -26,11 +26,15 @@ export function buildCategoryTree(rows: CategoryRow[]): CategoryNode[] {
 }
 
 export function registerCategoryRoutes(app: FastifyInstance, pool: pg.Pool): void {
-  app.get('/api/categories', async (_request, reply) => {
-    const result = await pool.query(
-      'SELECT id, parent_id, name FROM categories ORDER BY name ASC'
-    );
-    const rows = result.rows as CategoryRow[];
-    return reply.send({ data: buildCategoryTree(rows), flat: rows });
-  });
+  app.get(
+    '/api/categories',
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (_request, reply) => {
+      const result = await pool.query(
+        'SELECT id, parent_id, name FROM categories ORDER BY name ASC'
+      );
+      const rows = result.rows as CategoryRow[];
+      return reply.send({ data: buildCategoryTree(rows), flat: rows });
+    }
+  );
 }

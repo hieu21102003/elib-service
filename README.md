@@ -6,7 +6,7 @@ Chưa làm: upload nhiều file (Giai đoạn 2), tác vụ nền (Giai đoạn 
 
 ## Công nghệ
 
-- Fastify 5 + TypeScript (Node ≥ 22), `@fastify/multipart` (upload stream), `@fastify/cookie`
+- Fastify 5 + TypeScript (Node ≥ 22), `@fastify/multipart` (upload stream), `@fastify/cookie`, `@fastify/rate-limit` (giới hạn tần suất cho các GET công khai)
 - PostgreSQL qua `pg` + migration SQL thuần (`migrations/`), không dùng ORM nặng
 - `file-type` + kiểm tra magic bytes tự viết (OLE/ZIP/TXT-UTF8/DWG), SHA-256 dạng stream
 - Mật khẩu: argon2id (`@node-rs/argon2`); session phía server (bảng `sessions`, DB chỉ lưu SHA-256 của token), cookie `httpOnly`, `SameSite=Lax`, `Secure` cấu hình qua `COOKIE_SECURE`
@@ -27,7 +27,7 @@ npm run build && npm start   # hoặc: npm run dev
 
 Mở `http://<máy>:3200/` để dùng trang upload tạm. Kiểm tra sức khỏe: `GET /health`.
 
-Biến môi trường chính (xem `.env.example`): `DATABASE_URL`, `STORAGE_ROOT`, `MAX_UPLOAD_MB` (mặc định 200), `PORT` (mặc định 3200), `SESSION_SECRET`, `COOKIE_SECURE` (đặt `false` khi chạy HTTP trong LAN, `true` khi có HTTPS), `SESSION_TTL_DAYS`.
+Biến môi trường chính (xem `.env.example`): `DATABASE_URL`, `STORAGE_ROOT`, `MAX_UPLOAD_MB` (mặc định 200), `PORT` (mặc định 3200), `SESSION_SECRET`, `COOKIE_SECURE` (đặt `false` khi chạy HTTP trong LAN, `true` khi có HTTPS), `SESSION_TTL_DAYS`, `TRUST_PROXY` (mặc định `false`; đặt `true` khi đứng sau Reverse_proxy/Caddy để rate limit tính theo IP thật của người dùng thay vì IP của proxy — xem mục "Danh sách & tìm kiếm tài liệu").
 
 ## Deploy trên server (Docker)
 
@@ -96,6 +96,7 @@ Lưu ý vận hành:
 | POST | `/api/auth/logout` | đã đăng nhập | Đăng xuất, xóa session |
 | GET | `/api/auth/me` | đã đăng nhập | Thông tin người dùng hiện tại |
 | GET | `/api/categories` | công khai | Cây danh mục cho dropdown |
+| GET | `/api/documents` | theo ma trận dưới | Danh sách + tìm kiếm tài liệu (lọc quyền ngay trong SQL) — xem mục "Danh sách & tìm kiếm tài liệu" |
 | POST | `/api/documents` | admin/editor | Upload 1 file (multipart) + metadata: `title*`, `description`, `category_id`, `tags` (cách nhau bằng dấu phẩy, tự tạo nếu chưa có), `doc_type`, `language`, `visibility`, `status`, `force` |
 | GET | `/api/documents/:id/files/:fileId/download` | theo ma trận dưới | Tải file qua storage service, tên tải = `original_filename` |
 
@@ -114,9 +115,49 @@ Lỗi trả dạng `{ "error": { "code": "...", "message": "<tiếng Việt>" } 
 
 Upload: chỉ `admin`/`editor`. `viewer` gọi API upload nhận `403`; trang upload tạm ẩn form với viewer.
 
+## Danh sách & tìm kiếm tài liệu (GET /api/documents)
+
+Endpoint công khai (không bắt buộc đăng nhập) trả danh sách tài liệu mà người gọi **có quyền xem** theo đúng ma trận ở trên. Lọc quyền nằm **ngay trong SQL** (`src/documents/visibility.ts`) và áp dụng cho cả danh sách lẫn `total` — tài liệu không có quyền xem không lộ qua kết quả hay qua số lượng.
+
+Tham số truy vấn:
+
+| Tham số | Kiểu | Mô tả |
+| --- | --- | --- |
+| `q` | chuỗi, tối đa 200 ký tự | Từ khóa tìm kiếm (vượt 200 ký tự → `400 INVALID_QUERY`) |
+| `category_id` | UUID | Chỉ lấy tài liệu thuộc danh mục này (không phải UUID → `400`) |
+| `limit` | số nguyên | Mặc định 20; ngoài khoảng [1, 50] thì **kẹp lại** (0 → 1, 999 → 50); không phải số → `400` |
+| `offset` | số nguyên ≥ 0 | Mặc định 0; âm hoặc không phải số → `400` |
+
+Phản hồi:
+
+```json
+{
+  "data": [
+    {
+      "id": "...", "title": "...", "slug": "...", "description": "...",
+      "category_id": "...", "doc_type": "...", "language": "...",
+      "visibility": "internal", "status": "published", "price": null,
+      "created_by": "...", "created_at": "...", "updated_at": "...",
+      "file": { "id": "...", "document_id": "...", "version": 1,
+                "original_filename": "...", "mime_type": "application/pdf",
+                "file_size": 12345, "page_count": null, "created_at": "..." },
+      "tags": ["đường sắt"],
+      "category": { "id": "...", "name": "..." }
+    }
+  ],
+  "total": 42, "limit": 20, "offset": 0
+}
+```
+
+- Sắp xếp `created_at` giảm dần (mới nhất trước). `file` là **phiên bản mới nhất** của tài liệu (hoặc `null` nếu chưa có file); `storage_path` **không bao giờ** được trả ra. `price` trả nguyên dạng từ DB (`null` ở Giai đoạn 1; khi có giá, `pg` trả `numeric` dạng chuỗi).
+- **Tìm kiếm không dấu**: `q` khớp theo **tiêu đề, mô tả và thẻ** (không tìm trong nội dung file) — gõ "duong sat" vẫn khớp "Đường sắt". Kỹ thuật: extension `unaccent` + hàm `f_unaccent()` (IMMUTABLE) + index trigram `pg_trgm` (migration `002_search.sql`); ký tự `%`, `_`, `\` trong từ khóa được escape để hiểu theo nghĩa đen.
+- **Rate limit**: `GET /api/documents` và `GET /api/categories` giới hạn **120 request/phút theo IP**; vượt giới hạn → `429` với `{ "error": { "code": "RATE_LIMITED", "message": "..." } }`. Upload/login không bị giới hạn này.
+  - **Lưu ý proxy**: khi người dùng vào qua Reverse_proxy, mọi request đều đến từ IP của proxy nên tất cả dùng chung một hạn mức — trừ khi đặt `TRUST_PROXY=true` (elib khi đó tin header `X-Forwarded-For` và tính theo IP thật). Chỉ bật `TRUST_PROXY` khi elib thật sự đứng sau proxy tin cậy; mặc định `false`.
+- **Migration `002_search.sql`** tạo 2 extension `unaccent` + `pg_trgm`, hàm `f_unaccent()` và 2 index trigram. Tạo extension cần quyền DB owner/superuser — user `postgres` trong docker-compose đủ quyền (từ PostgreSQL 13+, hai extension này là "trusted" nên DB owner cũng tạo được). Chạy như mọi migration: `npm run migrate` (script chạy mọi file `*.sql` trong `migrations/` theo thứ tự tên, có bảng `_migrations` nên chạy lại an toàn).
+
 ## Dữ liệu
 
-Bảng: `users` (role admin/editor/viewer), `sessions`, `categories` (cây `parent_id`), `documents` (có `price` nullable — chưa hiện trên form Giai đoạn 1, chưa thanh toán), `document_files` (`page_count` để trống — Giai đoạn 3 mới đếm), `tags`, `document_tags`. Migration ở `migrations/001_init.sql`, chạy bằng `npm run migrate` (có bảng `_migrations`, chạy lại an toàn).
+Bảng: `users` (role admin/editor/viewer), `sessions`, `categories` (cây `parent_id`), `documents` (có `price` nullable — chưa hiện trên form Giai đoạn 1, chưa thanh toán), `document_files` (`page_count` để trống — Giai đoạn 3 mới đếm), `tags`, `document_tags`. Migration ở `migrations/` (`001_init.sql` tạo bảng; `002_search.sql` thêm tìm kiếm không dấu), chạy bằng `npm run migrate` (có bảng `_migrations`, chạy lại an toàn).
 
 Danh mục seed hiện là **dữ liệu mẫu** (6 nhóm Smart.Rail CAT01–CAT06 + danh mục con của nhóm Hạ tầng) — sẽ thay bằng danh sách thật khi được cung cấp.
 
