@@ -7,6 +7,14 @@
 // (SHA-256 digests + timingSafeEqual) and is never logged, including on
 // mismatch. When STANDARDS_INTERNAL_TOKEN is not configured the routes
 // answer 503 (feature off).
+//
+// Wire shapes come from src/standards/contract.ts — the single source of
+// truth shared with Reverse_proxy. Ingest accepts a multi-source search
+// page in ONE request ({sources:[{source, items}]}) and writes exactly
+// ONE search_log row per search request; the legacy single-source shape
+// ({source, items}) is still accepted, with `log:false` available so a
+// caller fanning one search into several legacy requests still produces
+// exactly one search_log row.
 
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -15,6 +23,11 @@ import type pg from 'pg';
 import type { AppConfig } from '../config.js';
 import { AppError } from '../errors.js';
 import { parseStandardCode } from '../standards/code-parser.js';
+import {
+  IngestRequestSchema,
+  LookupResponseSchema,
+  type IngestSourceGroup
+} from '../standards/contract.js';
 import { lightNormalizeCode } from '../standards/light-normalize.js';
 import {
   upsertStandardFromSearchItem,
@@ -27,56 +40,6 @@ import {
 } from '../standards/repository.js';
 
 const BODY_LIMIT_BYTES = 2 * 1024 * 1024; // 2 MB — one results page / one detail
-const MAX_ITEMS_PER_INGEST = 100;
-
-const sourceSchema = z.enum(['VSQI', 'TCVN_VN', 'TCVN_QT']);
-
-const searchItemSchema = z.object({
-  code: z.string().trim().min(1).max(200),
-  name: z.string().max(2000).nullable().optional(),
-  englishName: z.string().max(2000).nullable().optional(),
-  year: z.number().int().min(1000).max(9999).nullable().optional(),
-  status: z.string().max(100).nullable().optional(),
-  detailUrl: z.string().max(2000).nullable().optional(),
-  ics: z.array(z.string().max(50)).max(50).nullable().optional()
-});
-
-const relationSchema = z.object({
-  type: z.string().trim().min(1).max(100),
-  code: z.string().max(500).nullable().optional(),
-  text: z.string().max(2000).nullable().optional(),
-  url: z.string().max(2000).nullable().optional()
-});
-
-const detailSchema = searchItemSchema.extend({
-  issuedDate: z.string().max(50).nullable().optional(),
-  effectiveDate: z.string().max(50).nullable().optional(),
-  replaces: z.string().max(5000).nullable().optional(),
-  replacedBy: z.string().max(5000).nullable().optional(),
-  // attributes are stored verbatim in the snapshot payload; cap the array.
-  attributes: z.array(z.unknown()).max(500).nullable().optional(),
-  relations: z.array(relationSchema).max(500).nullable().optional()
-  // NOTE: `raw` is intentionally absent — zod strips unknown keys, so a
-  // raw payload sent by a buggy caller is dropped, never stored.
-});
-
-const ingestSchema = z
-  .object({
-    kind: z.enum(['search', 'detail']),
-    source: sourceSchema,
-    query: z.string().max(500).optional(),
-    hadResult: z.boolean().optional(),
-    items: z.array(searchItemSchema).max(MAX_ITEMS_PER_INGEST).optional(),
-    detail: detailSchema.optional()
-  })
-  .superRefine((value, ctx) => {
-    if (value.kind === 'search' && value.items === undefined) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'kind=search requires items' });
-    }
-    if (value.kind === 'detail' && value.detail === undefined) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'kind=detail requires detail' });
-    }
-  });
 
 const lookupQuerySchema = z.object({
   q: z.string().trim().min(1).max(500)
@@ -115,32 +78,49 @@ export function registerInternalStandardsRoutes(
     '/internal/standards/ingest',
     { preHandler: guard, bodyLimit: BODY_LIMIT_BYTES },
     async (request) => {
-      const body = ingestSchema.parse(request.body);
-      const source = body.source as StandardSource;
+      const body = IngestRequestSchema.parse(request.body);
       const log = (message: string) => request.log.warn(message);
       if (body.kind === 'search') {
-        const items = (body.items ?? []) as IngestSearchItem[];
+        // Normalize both accepted shapes into source groups. The schema
+        // guarantees exactly one of them is present.
+        const groups: IngestSourceGroup[] =
+          body.sources ??
+          [{ source: body.source as StandardSource, items: body.items ?? [] }];
         let stored = 0;
-        for (const item of items) {
-          const ids = await upsertStandardFromSearchItem(pool, item, source, log);
-          stored += ids.length;
+        let total = 0;
+        for (const group of groups) {
+          const source = group.source as StandardSource;
+          for (const item of group.items as IngestSearchItem[]) {
+            total += 1;
+            const ids = await upsertStandardFromSearchItem(pool, item, source, log);
+            stored += ids.length;
+          }
         }
         // search_log is written ONLY here (ingest), with had_result from
-        // the caller (Reverse_proxy knows the final merged result).
-        const query = body.query ?? '';
-        await logSearch(pool, {
-          queryNorm:
-            lightNormalizeCode(query)?.normalized_code ??
-            query.trim().replace(/\s+/g, ' ').toUpperCase(),
-          // org_guess is best-effort only — the full parser never
-          // decides keys, it just hints the organization for the log.
-          orgGuess: parseStandardCode(query).org_normalized,
-          hadResult: body.hadResult ?? items.length > 0
-        });
-        return { ok: true, stored, skipped: items.length - stored };
+        // the caller (Reverse_proxy knows the final merged result) —
+        // exactly ONE row per search request, whatever the shape,
+        // unless the caller opts out with log:false.
+        if (body.log !== false) {
+          const query = body.query ?? '';
+          await logSearch(pool, {
+            queryNorm:
+              lightNormalizeCode(query)?.normalized_code ??
+              query.trim().replace(/\s+/g, ' ').toUpperCase(),
+            // org_guess is best-effort only — the full parser never
+            // decides keys, it just hints the organization for the log.
+            orgGuess: parseStandardCode(query).org_normalized,
+            hadResult: body.hadResult ?? total > 0
+          });
+        }
+        return { ok: true, stored, skipped: total - stored };
       }
       const detail = body.detail as IngestDetail;
-      const ids = await upsertStandardFromDetail(pool, detail, source, log);
+      const ids = await upsertStandardFromDetail(
+        pool,
+        detail,
+        body.source as StandardSource,
+        log
+      );
       return { ok: true, stored: ids.length, skipped: ids.length === 0 ? 1 : 0 };
     }
   );
@@ -152,7 +132,10 @@ export function registerInternalStandardsRoutes(
       return { found: false };
     }
     const s = result.standard;
-    return {
+    // Parsed against the shared contract so any drift between this
+    // route and contract.ts fails loudly in tests instead of silently
+    // breaking Reverse_proxy.
+    return LookupResponseSchema.parse({
       found: true,
       standard: {
         id: s.id,
@@ -179,7 +162,9 @@ export function registerInternalStandardsRoutes(
         updatedAt: s.updated_at.toISOString()
       },
       // All matching editions, newest first (amendment/FDIS below the
-      // official edition) — `standard` above is editions[0].
+      // official edition) — `standard` above is editions[0]. Titles are
+      // included so the caller can render DB-only search results for
+      // every edition, not just the top one.
       editions: result.editions.map((row) => ({
         id: row.id,
         normalizedCode: row.normalized_code,
@@ -187,6 +172,8 @@ export function registerInternalStandardsRoutes(
         codeDisplay: row.code_display,
         year: row.year,
         status: row.status,
+        titleVi: row.title_vi,
+        titleEn: row.title_en,
         isAmendment: row.is_amendment,
         needsReview: row.needs_review,
         detailLevel: row.detail_level,
@@ -205,8 +192,12 @@ export function registerInternalStandardsRoutes(
         toBaseKey: row.to_base_key,
         toId: row.to_id,
         fromId: row.from_id,
-        source: row.source
-      }))
-    };
+        source: row.source,
+        otherNormalizedCode: row.other_normalized_code,
+        otherCodeDisplay: row.other_code_display
+      })),
+      replaces: result.replaces,
+      replacedBy: result.replacedBy
+    });
   });
 }
