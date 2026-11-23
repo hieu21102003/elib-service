@@ -12,6 +12,10 @@ import {
   type StandardRow
 } from '../src/standards/repository.js';
 import { tokenMatches } from '../src/routes/internal-standards.js';
+import {
+  IngestRequestSchema,
+  LookupResponseSchema
+} from '../src/standards/contract.js';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { createPool } from '../src/db.js';
@@ -340,7 +344,28 @@ describe('/internal/standards — guard token (không cần PostgreSQL thật)',
 class FakeDb {
   standards = new Map<string, Record<string, unknown>>();
   relations: unknown[][] = [];
+  searchLog: unknown[][] = [];
   private seq = 0;
+
+  private byId(id: unknown): Record<string, unknown> | undefined {
+    return [...this.standards.values()].find((r) => r.id === id);
+  }
+
+  /** EDITION_ORDER: year DESC NULLS LAST, is_amendment ASC, is_draft ASC, updated_at DESC. */
+  private sortEditions(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+    return [...rows].sort((a, b) => {
+      const ya = a.year as number | null;
+      const yb = b.year as number | null;
+      if (ya !== yb) {
+        if (ya === null) return 1;
+        if (yb === null) return -1;
+        return yb - ya;
+      }
+      if (a.is_amendment !== b.is_amendment) return a.is_amendment ? 1 : -1;
+      if (a.is_draft !== b.is_draft) return a.is_draft ? 1 : -1;
+      return (b.updated_at as Date).getTime() - (a.updated_at as Date).getTime();
+    });
+  }
 
   private makeRow(p: unknown[], stub: boolean): Record<string, unknown> {
     this.seq += 1;
@@ -374,9 +399,71 @@ class FakeDb {
   async query(sql: string, params: unknown[] = []): Promise<{ rows: Record<string, unknown>[] }> {
     const s = sql.replace(/\s+/g, ' ').trim();
     if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+    if (s.startsWith('SELECT * FROM standards WHERE normalized_code LIKE')) {
+      const pattern = String(params[0]).replace(/\\(.)/g, '$1');
+      const prefix = pattern.endsWith('%') ? pattern.slice(0, -1) : pattern;
+      const rows = [...this.standards.values()].filter((r) =>
+        String(r.normalized_code).startsWith(prefix)
+      );
+      return { rows: this.sortEditions(rows) };
+    }
     if (s.startsWith('SELECT * FROM standards WHERE normalized_code')) {
-      const row = this.standards.get(String(params[0]));
-      return { rows: row ? [row] : [] };
+      if (s.includes('FOR UPDATE')) {
+        const row = this.standards.get(String(params[0]));
+        return { rows: row ? [row] : [] };
+      }
+      // Lookup exact: normalized_code = $1 OR code_key_raw = $1
+      const rows = [...this.standards.values()].filter(
+        (r) => r.normalized_code === params[0] || r.code_key_raw === params[0]
+      );
+      return { rows };
+    }
+    if (s.startsWith('SELECT * FROM standards WHERE base_key')) {
+      const rows = [...this.standards.values()].filter(
+        (r) => r.base_key === params[0] || r.code_key_raw === params[1]
+      );
+      return { rows: this.sortEditions(rows) };
+    }
+    if (s.includes('f_unaccent(lower(COALESCE(title_vi')) {
+      const q = String(params[0]).toLowerCase();
+      const rows = [...this.standards.values()].filter(
+        (r) =>
+          String(r.title_vi ?? '').toLowerCase().includes(q) ||
+          String(r.title_en ?? '').toLowerCase().includes(q)
+      );
+      return { rows: this.sortEditions(rows).slice(0, 10) };
+    }
+    if (s.startsWith('SELECT source, detail_url, fetched_at FROM standard_sources')) {
+      return { rows: [] };
+    }
+    if (s.includes('FROM standard_relations r') && s.includes('UNION ALL')) {
+      // Lookup relations with the other end joined from standards.
+      // Stored relation params: [from_id, type, to_id, to_code_raw, to_norm, to_base_key, source]
+      const selfId = params[0];
+      const toRow = (r: unknown[], direction: string) => {
+        const other = this.byId(direction === 'outgoing' ? r[2] : r[0]);
+        return {
+          direction,
+          type: r[1],
+          to_code_raw: r[3],
+          to_norm: r[4],
+          to_base_key: r[5],
+          to_id: r[2],
+          from_id: r[0],
+          source: r[6],
+          other_normalized_code: other?.normalized_code ?? null,
+          other_code_display: other?.code_display ?? null
+        };
+      };
+      const rows = [
+        ...this.relations.filter((r) => r[0] === selfId).map((r) => toRow(r, 'outgoing')),
+        ...this.relations.filter((r) => r[2] === selfId).map((r) => toRow(r, 'incoming'))
+      ];
+      return { rows };
+    }
+    if (s.startsWith('INSERT INTO search_log')) {
+      this.searchLog.push(params);
+      return { rows: [] };
     }
     if (s.startsWith('SELECT id FROM standards WHERE normalized_code')) {
       // Dual match: normalized_code = $1 OR code_key_raw = $1
@@ -633,6 +720,284 @@ describe('ingest với khóa chuẩn hóa nhẹ (FakeDb, không cần PostgreSQL
   });
 });
 
+describe('contract — IngestRequestSchema (dùng chung hai repo)', () => {
+  it('chấp nhận cả shape mới sources[] lẫn shape cũ source+items', () => {
+    expect(
+      IngestRequestSchema.safeParse({
+        kind: 'search',
+        query: 'ISO 9001',
+        hadResult: true,
+        sources: [
+          { source: 'TCVN_VN', items: [{ code: 'TCVN ISO 9001:2015', year: 2015 }] },
+          { source: 'TCVN_QT', items: [{ code: 'ISO 9001', year: 2015 }] }
+        ]
+      }).success
+    ).toBe(true);
+    expect(
+      IngestRequestSchema.safeParse({
+        kind: 'search',
+        source: 'VSQI',
+        items: [{ code: 'TCVN 9143:2022', year: 2022 }],
+        log: false
+      }).success
+    ).toBe(true);
+  });
+
+  it('từ chối shape lẫn (cả sources[] lẫn source+items) và search thiếu items', () => {
+    expect(
+      IngestRequestSchema.safeParse({
+        kind: 'search',
+        source: 'VSQI',
+        items: [],
+        sources: [{ source: 'VSQI', items: [] }]
+      }).success
+    ).toBe(false);
+    expect(
+      IngestRequestSchema.safeParse({ kind: 'search', source: 'VSQI' }).success
+    ).toBe(false);
+    expect(IngestRequestSchema.safeParse({ kind: 'search' }).success).toBe(false);
+  });
+
+  it('kind=detail vẫn một nguồn: sources[]/items bị từ chối, thiếu source bị từ chối', () => {
+    expect(
+      IngestRequestSchema.safeParse({
+        kind: 'detail',
+        source: 'TCVN_VN',
+        detail: { code: 'TCVN 9143:2022', year: 2022 }
+      }).success
+    ).toBe(true);
+    expect(
+      IngestRequestSchema.safeParse({
+        kind: 'detail',
+        sources: [{ source: 'VSQI', items: [] }],
+        detail: { code: 'TCVN 9143:2022' }
+      }).success
+    ).toBe(false);
+    expect(
+      IngestRequestSchema.safeParse({ kind: 'detail', detail: { code: 'TCVN 9143:2022' } })
+        .success
+    ).toBe(false);
+  });
+
+  it('trường raw bị strip, không lọt vào parsed output', () => {
+    const parsed = IngestRequestSchema.parse({
+      kind: 'detail',
+      source: 'VSQI',
+      detail: { code: 'TCVN 1:2020', raw: { secret: 'không được lưu' } }
+    });
+    expect((parsed.detail as Record<string, unknown>).raw).toBeUndefined();
+  });
+});
+
+describe('lookup relations + replacedBy (FakeDb, không cần PostgreSQL)', () => {
+  it('lookup TCVN 9143:2012 -> replacedBy TCVN 9143:2022 (suy từ cạnh replaces ngược chiều)', async () => {
+    const db = new FakeDb();
+    await upsertStandardFromDetail(
+      db.asPool(),
+      {
+        code: 'TCVN 9143:2022',
+        year: 2022,
+        status: 'Active',
+        name: 'Công trình thủy lợi. Tính toán thấm',
+        replaces: 'TCVN 9143:2012'
+      },
+      'TCVN_VN'
+    );
+
+    const found2012 = await lookupByCode(db.asPool(), 'TCVN 9143:2012');
+    expect(found2012?.standard.normalized_code).toBe('TCVN9143:2012');
+    expect(found2012?.replacedBy).toBe('TCVN 9143:2022');
+    expect(found2012?.replaces).toEqual([]);
+    const incoming = found2012?.relations.find(
+      (r) => r.direction === 'incoming' && r.type === 'replaces'
+    );
+    expect(incoming?.other_normalized_code).toBe('TCVN9143:2022');
+    expect(incoming?.other_code_display).toBe('TCVN 9143:2022');
+
+    const found2022 = await lookupByCode(db.asPool(), 'TCVN 9143:2022');
+    expect(found2022?.replaces).toEqual(['TCVN 9143:2012']);
+    expect(found2022?.replacedBy).toBeNull();
+    const outgoing = found2022?.relations.find(
+      (r) => r.direction === 'outgoing' && r.type === 'replaces'
+    );
+    expect(outgoing?.other_normalized_code).toBe('TCVN9143:2012');
+    expect(outgoing?.other_code_display).toBe('TCVN 9143:2012');
+  });
+
+  it('editions kèm title_vi/title_en cho mọi ấn bản, mới nhất đầu', async () => {
+    const db = new FakeDb();
+    await upsertStandardFromSearchItem(
+      db.asPool(),
+      {
+        code: 'TCVN 9143:2022',
+        year: 2022,
+        name: 'Tên 2022',
+        englishName: 'Title 2022',
+        status: 'Active'
+      },
+      'TCVN_VN'
+    );
+    await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'TCVN 9143:2012', year: 2012, name: 'Tên 2012', status: 'Withdrawn' },
+      'TCVN_VN'
+    );
+    const found = await lookupByCode(db.asPool(), 'tcvn 9143');
+    expect(
+      found?.editions.map((e) => [e.normalized_code, e.title_vi, e.title_en])
+    ).toEqual([
+      ['TCVN9143:2022', 'Tên 2022', 'Title 2022'],
+      ['TCVN9143:2012', 'Tên 2012', null]
+    ]);
+  });
+});
+
+describe('/internal/standards — ingest đa nguồn + lookup contract (FakeDb)', () => {
+  const tokenCfg = () => ({
+    ...loadConfig(),
+    logLevel: 'silent' as const,
+    standardsInternalToken: 'test-token'
+  });
+
+  it('ingest sources[]: lưu mọi nguồn, đúng 1 dòng search_log mỗi lượt; legacy log:false không ghi thêm', async () => {
+    const db = new FakeDb();
+    const app = await createApp({ pool: db.asPool(), config: tokenCfg() });
+    const headers = { 'x-internal-token': 'test-token' };
+    try {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/internal/standards/ingest',
+        headers,
+        payload: {
+          kind: 'search',
+          query: 'ISO 9001',
+          hadResult: true,
+          sources: [
+            {
+              source: 'TCVN_VN',
+              items: [
+                { code: 'TCVN ISO 9001:2015', year: 2015, name: 'Hệ thống quản lý chất lượng' }
+              ]
+            },
+            {
+              source: 'TCVN_QT',
+              items: [{ code: 'ISO 9001', year: 2015, name: 'Quality management systems' }]
+            }
+          ]
+        }
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ ok: true, stored: 2, skipped: 0 });
+      expect(db.standards.has('TCVNISO9001:2015')).toBe(true);
+      expect(db.standards.has('ISO9001:2015')).toBe(true);
+      expect(db.searchLog.length).toBe(1);
+      expect(db.searchLog[0][2]).toBe(true); // had_result
+
+      // Lượt tìm thứ hai (shape cũ, không có log) -> thêm đúng 1 dòng
+      const res2 = await app.inject({
+        method: 'POST',
+        url: '/internal/standards/ingest',
+        headers,
+        payload: {
+          kind: 'search',
+          source: 'VSQI',
+          query: 'TCVN 9143',
+          hadResult: true,
+          items: [{ code: 'TCVN 9143:2022', year: 2022 }]
+        }
+      });
+      expect(res2.statusCode).toBe(200);
+      expect(db.searchLog.length).toBe(2);
+
+      // Legacy fan-out với log:false -> không ghi thêm dòng nào
+      const res3 = await app.inject({
+        method: 'POST',
+        url: '/internal/standards/ingest',
+        headers,
+        payload: {
+          kind: 'search',
+          source: 'TCVN_QT',
+          query: 'TCVN 9143',
+          hadResult: true,
+          log: false,
+          items: [{ code: 'TCVN 9143:2022', year: 2022 }]
+        }
+      });
+      expect(res3.statusCode).toBe(200);
+      expect(db.searchLog.length).toBe(2);
+
+      // Shape lẫn -> 400 trước khi chạm DB
+      const bad = await app.inject({
+        method: 'POST',
+        url: '/internal/standards/ingest',
+        headers,
+        payload: {
+          kind: 'search',
+          source: 'VSQI',
+          items: [],
+          sources: [{ source: 'VSQI', items: [] }]
+        }
+      });
+      expect(bad.statusCode).toBe(400);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('lookup route: response khớp LookupResponseSchema, editions có title, replacedBy suy đúng', async () => {
+    const db = new FakeDb();
+    await upsertStandardFromDetail(
+      db.asPool(),
+      {
+        code: 'TCVN 9143:2022',
+        year: 2022,
+        status: 'Active',
+        name: 'Tên 2022',
+        englishName: 'Title 2022',
+        replaces: 'TCVN 9143:2012'
+      },
+      'TCVN_VN'
+    );
+    const app = await createApp({ pool: db.asPool(), config: tokenCfg() });
+    try {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/internal/standards/lookup?q=TCVN%209143%3A2012',
+        headers: { 'x-internal-token': 'test-token' }
+      });
+      expect(res.statusCode).toBe(200);
+      const body = LookupResponseSchema.parse(res.json());
+      expect(body.found).toBe(true);
+      if (body.found) {
+        expect(body.standard.normalizedCode).toBe('TCVN9143:2012');
+        expect(body.replacedBy).toBe('TCVN 9143:2022');
+        expect(body.replaces).toEqual([]);
+        const incoming = body.relations.find(
+          (r) => r.direction === 'incoming' && r.type === 'replaces'
+        );
+        expect(incoming?.otherNormalizedCode).toBe('TCVN9143:2022');
+        expect(incoming?.otherCodeDisplay).toBe('TCVN 9143:2022');
+      }
+
+      const resBase = await app.inject({
+        method: 'GET',
+        url: '/internal/standards/lookup?q=tcvn%209143',
+        headers: { 'x-internal-token': 'test-token' }
+      });
+      const bodyBase = LookupResponseSchema.parse(resBase.json());
+      expect(bodyBase.found).toBe(true);
+      if (bodyBase.found) {
+        expect(bodyBase.editions[0].normalizedCode).toBe('TCVN9143:2022');
+        expect(bodyBase.editions[0].titleVi).toBe('Tên 2022');
+        expect(bodyBase.editions[0].titleEn).toBe('Title 2022');
+        expect(bodyBase.replaces).toEqual(['TCVN 9143:2012']);
+      }
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 describe.skipIf(!hasDb)('standards repository (cần PostgreSQL thật)', () => {
   const pool = hasDb ? createPool(process.env.DATABASE_URL as string) : (null as never);
 
@@ -710,6 +1075,16 @@ describe.skipIf(!hasDb)('standards repository (cần PostgreSQL thật)', () => 
     const byYear = await lookupByCode(pool, 'TCVN9143:2012');
     expect(byYear?.standard.normalized_code).toBe('TCVN9143:2012');
     expect(byYear?.relations.some((r) => r.direction === 'incoming' && r.type === 'replaces')).toBe(true);
+    // replacedBy suy từ cạnh replaces ngược chiều (2022 replaces 2012):
+    expect(byYear?.replacedBy).toBe('TCVN 9143:2022');
+    expect(byYear?.replaces).toEqual([]);
+    const incoming = byYear?.relations.find(
+      (r) => r.direction === 'incoming' && r.type === 'replaces'
+    );
+    expect(incoming?.other_normalized_code).toBe('TCVN9143:2022');
+    expect(incoming?.other_code_display).toBe('TCVN 9143:2022');
+    expect(byBase?.replaces).toEqual(['TCVN 9143:2012']);
+    expect(byBase?.replacedBy).toBeNull();
 
     // Search item không hạ cấp bản full
     await upsertStandardFromSearchItem(
@@ -809,5 +1184,67 @@ describe.skipIf(!hasDb)('standards repository (cần PostgreSQL thật)', () => 
     await pool.query(
       "DELETE FROM standards WHERE normalized_code IN ('14TCN58:1988','TCVN9143:2012')"
     );
+  });
+
+  it('ingest sources[] qua route: đúng 1 dòng search_log mỗi lượt tìm', async () => {
+    const app = await createApp({
+      pool,
+      config: { ...loadConfig(), logLevel: 'silent', standardsInternalToken: 'test-token' }
+    });
+    const headers = { 'x-internal-token': 'test-token' };
+    try {
+      const before = await pool.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM search_log WHERE query_norm = 'ISO9001'"
+      );
+      const res = await app.inject({
+        method: 'POST',
+        url: '/internal/standards/ingest',
+        headers,
+        payload: {
+          kind: 'search',
+          query: 'ISO 9001',
+          hadResult: true,
+          sources: [
+            {
+              source: 'TCVN_VN',
+              items: [{ code: 'TCVN ISO 9001:2015', year: 2015, name: 'Hệ thống quản lý chất lượng' }]
+            },
+            {
+              source: 'TCVN_QT',
+              items: [{ code: 'ISO 9001', year: 2015, name: 'Quality management systems' }]
+            }
+          ]
+        }
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ ok: true, stored: 2, skipped: 0 });
+      const after1 = await pool.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM search_log WHERE query_norm = 'ISO9001'"
+      );
+      expect(after1.rows[0].n - before.rows[0].n).toBe(1);
+
+      const res2 = await app.inject({
+        method: 'POST',
+        url: '/internal/standards/ingest',
+        headers,
+        payload: {
+          kind: 'search',
+          query: 'ISO 9001',
+          hadResult: false,
+          sources: [{ source: 'VSQI', items: [] }]
+        }
+      });
+      expect(res2.statusCode).toBe(200);
+      const after2 = await pool.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM search_log WHERE query_norm = 'ISO9001'"
+      );
+      expect(after2.rows[0].n - before.rows[0].n).toBe(2);
+    } finally {
+      await app.close();
+      await pool.query(
+        "DELETE FROM standards WHERE normalized_code IN ('TCVNISO9001:2015','ISO9001:2015')"
+      );
+      await pool.query("DELETE FROM search_log WHERE query_norm = 'ISO9001'");
+    }
   });
 });

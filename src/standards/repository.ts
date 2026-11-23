@@ -855,6 +855,14 @@ export interface LookupRelation {
   to_id: string | null;
   from_id: string;
   source: string | null;
+  /**
+   * The OTHER end of the edge, resolved against standards:
+   * outgoing -> the target standard (joined on to_id);
+   * incoming -> the source standard (joined on from_id).
+   * Null when that end is unresolved (to_id NULL / raw-only edge).
+   */
+  other_normalized_code: string | null;
+  other_code_display: string | null;
 }
 
 export interface LookupResult {
@@ -864,6 +872,10 @@ export interface LookupResult {
   editions: StandardRow[];
   sources: Array<{ source: string; detail_url: string | null; fetched_at: Date }>;
   relations: LookupRelation[];
+  /** Codes this standard replaces (outgoing 'replaces' edges). */
+  replaces: string[];
+  /** Code of the standard that replaces this one (incoming 'replaces'), or null. */
+  replacedBy: string | null;
 }
 
 const EDITION_ORDER = `ORDER BY year DESC NULLS LAST, is_amendment ASC,
@@ -937,14 +949,43 @@ export async function lookupByCode(
     [standard.id]
   );
   const relations = await pool.query<LookupRelation>(
-    `SELECT 'outgoing' AS direction, type, to_code_raw, to_norm, to_base_key, to_id, from_id, source
-       FROM standard_relations WHERE from_id = $1
+    `SELECT 'outgoing' AS direction, r.type, r.to_code_raw, r.to_norm, r.to_base_key,
+            r.to_id, r.from_id, r.source,
+            t.normalized_code AS other_normalized_code,
+            t.code_display AS other_code_display
+       FROM standard_relations r
+       LEFT JOIN standards t ON t.id = r.to_id
+      WHERE r.from_id = $1
      UNION ALL
-     SELECT 'incoming' AS direction, type, to_code_raw, to_norm, to_base_key, to_id, from_id, source
-       FROM standard_relations WHERE to_id = $1`,
+     SELECT 'incoming' AS direction, r.type, r.to_code_raw, r.to_norm, r.to_base_key,
+            r.to_id, r.from_id, r.source,
+            f.normalized_code AS other_normalized_code,
+            f.code_display AS other_code_display
+       FROM standard_relations r
+       JOIN standards f ON f.id = r.from_id
+      WHERE r.to_id = $1`,
     [standard.id]
   );
-  return { standard, editions: rows, sources: sources.rows, relations: relations.rows };
+  // Convenience derivations: replacement edges are stored one-direction
+  // only ("B replaces A"), so `replacedBy` is read off the INCOMING
+  // 'replaces' edge. Codes prefer code_display (as upstream writes
+  // them), then normalized_code, then the raw target text.
+  const edgeCode = (r: LookupRelation): string =>
+    r.other_code_display ?? r.other_normalized_code ?? r.to_code_raw;
+  const replaces = relations.rows
+    .filter((r) => r.direction === 'outgoing' && r.type === 'replaces')
+    .map(edgeCode);
+  const replacedByEdge = relations.rows.find(
+    (r) => r.direction === 'incoming' && r.type === 'replaces'
+  );
+  return {
+    standard,
+    editions: rows,
+    sources: sources.rows,
+    relations: relations.rows,
+    replaces,
+    replacedBy: replacedByEdge ? edgeCode(replacedByEdge) : null
+  };
 }
 
 /**
