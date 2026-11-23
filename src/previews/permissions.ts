@@ -1,4 +1,4 @@
-import type { CurrentUser, DocumentAccessRow } from '../auth/session.js';
+import { canDownloadOriginal, type CurrentUser, type DocumentAccessRow } from '../auth/session.js';
 import { visibleInList } from '../documents/visibility.js';
 
 /**
@@ -15,10 +15,10 @@ export function canPreview(user: CurrentUser | null, doc: DocumentAccessRow): bo
 
 /**
  * Quyền xem TOÀN BỘ online (/view): CHỈ người tạo tài liệu + admin.
- * Editor KHÔNG có quyền này (dù editor vẫn giữ quyền tải bản gốc theo
- * canDownload hiện có — xem ghi chú trong báo cáo Giai đoạn A).
+ * Dùng chung quy tắc với quyền tải bản gốc (canDownloadOriginal) để
+ * /view và .../download không bao giờ lệch nhau; khi thêm quyền người
+ * đã mua, chỉ sửa canDownloadOriginal.
  */
 export function canViewFull(user: CurrentUser | null, doc: DocumentAccessRow): boolean {
-  if (!user) return false;
-  return user.id === doc.created_by || user.role === 'admin';
+  return canDownloadOriginal(user, doc);
 }

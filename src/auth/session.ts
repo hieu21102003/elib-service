@@ -128,12 +128,16 @@ export function canAccessInternal(user: CurrentUser | null): boolean {
 }
 
 /**
- * Ma trận quyền tải file:
+ * Ma trận quyền "thấy tài liệu" (danh sách + bản xem trước):
  * - draft/hidden: người tạo, editor, admin (viewer không bao giờ).
  * - published + public: mọi người (kể cả chưa đăng nhập).
  * - published + internal: CHỈ người nội bộ (user_type=internal) hoặc editor/admin.
- *   Khách ngoài (external) đã đăng nhập cũng không tải được.
+ *   Khách ngoài (external) đã đăng nhập cũng không thấy được.
  * - published + private: người tạo hoặc admin.
+ *
+ * LƯU Ý: đây KHÔNG còn là quyền tải bản gốc. Tải file gốc dùng quy tắc chặt
+ * hơn ở canDownloadOriginal() bên dưới; ma trận này chỉ còn quyết định ai
+ * thấy tài liệu trong danh sách và ai xem được bản xem trước.
  */
 export function canDownload(user: CurrentUser | null, doc: DocumentAccessRow): boolean {
   if (doc.status === 'draft' || doc.status === 'hidden') {
@@ -144,5 +148,21 @@ export function canDownload(user: CurrentUser | null, doc: DocumentAccessRow): b
   if (!user) return false;
   if (doc.visibility === 'internal') return canAccessInternal(user);
   // private
+  return user.id === doc.created_by || user.role === 'admin';
+}
+
+/**
+ * Quyền tải BẢN GỐC (file gốc qua .../download) — chặt hơn ma trận
+ * "thấy tài liệu" ở trên: CHỈ người tạo tài liệu (documents.created_by)
+ * hoặc admin. Editor không phải người tạo, viewer nội bộ/ngoài đều KHÔNG
+ * tải được bản gốc (họ vẫn thấy tài liệu trong danh sách và xem bản xem
+ * trước theo ma trận cũ). Quy tắc không phụ thuộc status/visibility.
+ * /view (xem toàn bộ online) dùng chung quy tắc này qua canViewFull.
+ *
+ * Điểm mở rộng tương lai: khi có tính năng mua tài liệu, kiểm tra quyền
+ * của người đã mua (purchaser) sẽ được thêm TẠI ĐÂY — chỉ sửa một chỗ này.
+ */
+export function canDownloadOriginal(user: CurrentUser | null, doc: DocumentAccessRow): boolean {
+  if (!user) return false;
   return user.id === doc.created_by || user.role === 'admin';
 }

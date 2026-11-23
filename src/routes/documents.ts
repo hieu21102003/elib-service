@@ -7,7 +7,7 @@ import type pg from 'pg';
 import type { AppConfig } from '../config.js';
 import { withTransaction } from '../db.js';
 import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../errors.js';
-import { canDownload, canUpload, type CurrentUser } from '../auth/session.js';
+import { canDownloadOriginal, canUpload, type CurrentUser } from '../auth/session.js';
 import { canViewFull } from '../previews/permissions.js';
 import { parseDocumentListQuery } from '../documents/list-query.js';
 import { searchPredicate } from '../documents/search.js';
@@ -82,6 +82,9 @@ function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
     updated_at: row.updated_at,
     // Người dùng hiện tại có được xem TOÀN BỘ online không (chỉ người tạo + admin).
     can_view_full: canViewFull(user, row),
+    // Người dùng hiện tại có được tải BẢN GỐC không (chỉ người tạo + admin;
+    // chưa đăng nhập luôn false).
+    can_download: canDownloadOriginal(user, row),
     // File phiên bản mới nhất của tài liệu; KHÔNG bao giờ trả storage_path/preview_path.
     file: row.file_id
       ? {
@@ -401,7 +404,7 @@ export function registerDocumentRoutes(
 
   // Đổi mức hiển thị (visibility) của tài liệu — CHỈ admin hoặc người tạo.
   // Chỉ ghi cột visibility (+ updated_at); ma trận quyền đọc/tải/preview
-  // (visibleDocumentsWhere, canDownload, canPreview) không đổi.
+  // (visibleDocumentsWhere, canDownloadOriginal, canPreview) không đổi.
   app.patch('/api/documents/:id', async (request, reply) => {
     const user = await getCurrentUser(pool, request.cookies);
     if (!user) throw unauthorized();
@@ -487,9 +490,17 @@ export function registerDocumentRoutes(
     if (!row) throw notFound();
 
     const user = await getCurrentUser(pool, request.cookies);
-    if (!canDownload(user, row)) {
+    // Tải bản gốc: CHỈ người tạo tài liệu hoặc admin (canDownloadOriginal).
+    // Chưa đăng nhập giữ quy ước cũ của route này (401); đã đăng nhập mà
+    // không có quyền -> 403 DOWNLOAD_FORBIDDEN. Tài liệu/file không tồn tại
+    // vẫn 404 như trước (kiểm tra ở trên, không lộ thêm thông tin).
+    if (!canDownloadOriginal(user, row)) {
       if (!user) throw unauthorized('Bạn cần đăng nhập để tải tài liệu này');
-      throw forbidden('Bạn không có quyền tải tài liệu này');
+      throw new AppError(
+        403,
+        'DOWNLOAD_FORBIDDEN',
+        'Chỉ người tạo tài liệu hoặc quản trị viên mới tải được bản gốc của tài liệu này'
+      );
     }
 
     const stream = await storage.open(row.storage_path);
