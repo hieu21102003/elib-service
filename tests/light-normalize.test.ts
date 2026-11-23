@@ -12,6 +12,7 @@ interface SharedCase {
   year_field: number | null;
   normalized_code: string | null;
   base_key: string | null;
+  code_key_raw: string | null;
   year: number | null;
   amendment_year: number | null;
   is_amendment: boolean | null;
@@ -32,6 +33,7 @@ describe('lightNormalizeCode — fixture khóa dùng chung hai repo', () => {
       const got = {
         normalized_code: light?.normalized_code ?? null,
         base_key: light?.base_key ?? null,
+        code_key_raw: light?.code_key_raw ?? null,
         year: light?.year ?? null,
         amendment_year: light?.amendment_year ?? null,
         is_amendment: light?.is_amendment ?? null,
@@ -42,6 +44,7 @@ describe('lightNormalizeCode — fixture khóa dùng chung hai repo', () => {
       const want = {
         normalized_code: c.normalized_code,
         base_key: c.base_key,
+        code_key_raw: c.code_key_raw,
         year: c.year,
         amendment_year: c.amendment_year,
         is_amendment: c.is_amendment,
@@ -225,11 +228,12 @@ describe('lightNormalizeCode — phân cách nhóm số + needs_review (bổ sun
     const light = lightNormalizeCode('TCVN 9143:2022');
     expect(light?.normalized_code).toBe('TCVN9143:2022');
     expect(light?.needs_review).toBe(false);
-    // "TCVN 1234-1 2013": nhóm số -> "TCVN1234-1-2013", rồi -2013 trùng
-    // trường year -> ":2013"; vẫn needs_review vì đã giữ phân cách.
+    // "TCVN 1234-1 2013": nhóm số cuối trùng đúng trường year -> coi
+    // là năm (":2013"), KHÔNG needs_review (vòng sửa cuối 2).
     const grouped = lightNormalizeCode('TCVN 1234-1 2013', 2013);
     expect(grouped?.normalized_code).toBe('TCVN1234-1:2013');
-    expect(grouped?.needs_review).toBe(true);
+    expect(grouped?.year).toBe(2013);
+    expect(grouped?.needs_review).toBe(false);
   });
 });
 
@@ -322,7 +326,9 @@ describe('lightNormalizeCode — cắt từ "(" + văn xuôi catalog (vòng sử
     const light = lightNormalizeCode('TCVN 13566:2022 (các phần 1-6)', 2022);
     expect(light?.normalized_code).toBe('TCVN13566:2022');
     expect(light?.parenthetical).toBe('các phần 1-6');
-    expect(light?.needs_review).toBe(false);
+    // Ngoặc chứa chữ chỉ phần -> needs_review (vòng sửa cuối 2):
+    // thông tin phần bị cắt khỏi khóa nên phải có người rà soát.
+    expect(light?.needs_review).toBe(true);
 
     const equiv = lightNormalizeCode('TCVN 9386-1:2012 (ISO 3010:2001)', 2012);
     expect(equiv?.normalized_code).toBe('TCVN9386-1:2012');
@@ -426,5 +432,133 @@ describe('splitReplacesParts — replaces của TCVN_QT (mẫu ISO 9001 thật)'
     expect(lightNormalizeCode(parts[1].code, parts[1].year)?.normalized_code).toBe(
       'ISOFDIS9001:2015'
     );
+  });
+});
+
+describe('lightNormalizeCode — tự từ chối multi-code / prose (vòng sửa cuối 2)', () => {
+  it('chuỗi chứa "*" -> skipped_reason=multi-code, không tạo khóa', () => {
+    const light = lightNormalizeCode(
+      'ISO 9001 (2008-11)*ISO/FDIS 9001 (2015-07)*ISO 9001 Technical Corrigendum 1 (2009-07)'
+    );
+    expect(light).not.toBeNull();
+    expect(light?.normalized_code).toBeNull();
+    expect(light?.base_key).toBeNull();
+    expect(light?.code_key_raw).toBeNull();
+    expect(light?.skipped_reason).toBe('multi-code');
+  });
+
+  it('từ đầy đủ CORRIGENDUM/AMENDMENT/TECHNICAL -> skipped_reason=prose', () => {
+    const corr = lightNormalizeCode('ISO 9001 Technical Corrigendum 1 (2009-07)');
+    expect(corr?.normalized_code).toBeNull();
+    expect(corr?.skipped_reason).toBe('prose');
+    expect(lightNormalizeCode('ISO 9001 Amendment 1:2016')?.skipped_reason).toBe('prose');
+    expect(lightNormalizeCode('iso 9001 corrigendum 1')?.skipped_reason).toBe('prose');
+  });
+
+  it('dạng viết tắt /Amd /Cor không bị từ chối', () => {
+    expect(lightNormalizeCode('ISO 9001:2015/Amd 1:2016')?.normalized_code).toBe(
+      'ISO9001:2015/AMD1:2016'
+    );
+    expect(lightNormalizeCode('ISO 9001:2015/Cor 1:2019')?.skipped_reason).toBeNull();
+    expect(lightNormalizeCode('TCVN 9143:2022')?.skipped_reason).toBeNull();
+  });
+});
+
+describe('lightNormalizeCode — code_key_raw (khóa trước khi viết lại năm)', () => {
+  it('"14 TCN 58-88" + 1988: normalized 14TCN58:1988, code_key_raw giữ -88', () => {
+    const light = lightNormalizeCode('14 TCN 58-88', 1988);
+    expect(light?.normalized_code).toBe('14TCN58:1988');
+    expect(light?.code_key_raw).toBe('14TCN58-88');
+    expect(light?.base_key).toBe('14TCN58');
+    expect(light?.year).toBe(1988);
+  });
+
+  it('code không năm + trường year: code_key_raw là dạng chưa nối ":year"', () => {
+    const light = lightNormalizeCode('ISO 9001', 2015);
+    expect(light?.normalized_code).toBe('ISO9001:2015');
+    expect(light?.code_key_raw).toBe('ISO9001');
+  });
+
+  it('năm gạch ngang: code_key_raw giữ dạng gạch, normalized đổi sang ":YYYY"', () => {
+    const light = lightNormalizeCode('GB/T 19001-2016', 2016);
+    expect(light?.normalized_code).toBe('GBT19001:2016');
+    expect(light?.code_key_raw).toBe('GBT19001-2016');
+  });
+
+  it('code đã có ":YYYY": code_key_raw = normalized_code', () => {
+    const light = lightNormalizeCode('TCVN 9143:2022');
+    expect(light?.code_key_raw).toBe('TCVN9143:2022');
+    expect(light?.code_key_raw).toBe(light?.normalized_code);
+  });
+
+  it('mã bị bỏ qua -> code_key_raw null', () => {
+    expect(lightNormalizeCode('ISO 9001*ISO 9002')?.code_key_raw).toBeNull();
+    expect(lightNormalizeCode('BS EN 13146-1 đến 10:2019')?.code_key_raw).toBeNull();
+  });
+});
+
+describe('lightNormalizeCode — ngoặc chứa chữ phần/khoảng -> needs_review (vòng sửa cuối 2)', () => {
+  it('"các phần" / "phần ... đến" / "từ ... đến" trong ngoặc bị cắt -> needs_review', () => {
+    expect(
+      lightNormalizeCode('TCVN 13566:2022 (các phần 1-6)', 2022)?.needs_review
+    ).toBe(true);
+    expect(
+      lightNormalizeCode('TCVN 1234:2020 (phần 1 đến 3)', 2020)?.needs_review
+    ).toBe(true);
+    expect(
+      lightNormalizeCode('TCVN 1234:2020 (từ 1 đến 10, 2019)', 2020)?.needs_review
+    ).toBe(true);
+    // Không dấu cũng bắt được:
+    expect(
+      lightNormalizeCode('TCVN 13566:2022 (cac phan 1-6)', 2022)?.needs_review
+    ).toBe(true);
+  });
+
+  it('ngoặc mã tương đương / ngoặc ngày không bị gắn cờ', () => {
+    expect(
+      lightNormalizeCode('TCVN 9386-1:2012 (ISO 3010:2001)', 2012)?.needs_review
+    ).toBe(false);
+    expect(lightNormalizeCode('ISO 9001 (2008-11)')?.needs_review).toBe(false);
+    expect(lightNormalizeCode('TCVN 9143:2022')?.needs_review).toBe(false);
+  });
+});
+
+describe('lightNormalizeCode — nhóm số cuối trùng trường year (vòng sửa cuối 2)', () => {
+  it('"TCVN 1234-1 2013" + 2013 -> :2013, không needs_review', () => {
+    const light = lightNormalizeCode('TCVN 1234-1 2013', 2013);
+    expect(light?.normalized_code).toBe('TCVN1234-1:2013');
+    expect(light?.code_key_raw).toBe('TCVN1234-1-2013');
+    expect(light?.needs_review).toBe(false);
+  });
+
+  it('nhóm số cuối 4 chữ số nhưng khác trường year -> vẫn needs_review', () => {
+    const light = lightNormalizeCode('TCVN 1234 2013', 2020);
+    expect(light?.normalized_code).toBe('TCVN1234-2013:2020');
+    expect(light?.needs_review).toBe(true);
+  });
+
+  it('nhóm số không phải năm -> vẫn giữ "-" + needs_review như cũ', () => {
+    const light = lightNormalizeCode('TCVN 1234 12', 2020);
+    expect(light?.normalized_code).toBe('TCVN1234-12:2020');
+    expect(light?.needs_review).toBe(true);
+  });
+});
+
+describe('lightNormalizeCode — mã bổ sung bảng (vòng sửa cuối 2)', () => {
+  it('"ISO 1234-13" + 2013: giữ -13, nối :2013, needs_review', () => {
+    const light = lightNormalizeCode('ISO 1234-13', 2013);
+    expect(light?.normalized_code).toBe('ISO1234-13:2013');
+    expect(light?.code_key_raw).toBe('ISO1234-13');
+    expect(light?.year).toBe(2013);
+    expect(light?.needs_review).toBe(true);
+  });
+
+  it('"JIS B8009-12" + 2012: JIS ngoài allowlist -YY -> giữ -12, nối :2012, needs_review', () => {
+    const light = lightNormalizeCode('JIS B8009-12', 2012);
+    expect(light?.normalized_code).toBe('JISB8009-12:2012');
+    expect(light?.normalized_code).not.toBe('JISB8009:2012');
+    expect(light?.code_key_raw).toBe('JISB8009-12');
+    expect(light?.year).toBe(2012);
+    expect(light?.needs_review).toBe(true);
   });
 });

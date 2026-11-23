@@ -11,11 +11,20 @@
 // truth for normalized_code.
 //
 // Rules:
+// - the normalizer rejects non-codes itself: raw input containing "*"
+//   (a multi-code string that should have been split upstream) ->
+//   skipped_reason 'multi-code'; raw input containing the full words
+//   CORRIGENDUM / AMENDMENT / TECHNICAL (prose, e.g. "ISO 9001
+//   Technical Corrigendum 1") -> skipped_reason 'prose'. Abbreviated
+//   /Amd, /Cor suffixes are NOT rejected;
 // - cut the code at the first "(" BEFORE anything else; the
 //   parenthetical is returned separately (`parenthetical`) for the
 //   repository to use as an equivalent-relation raw code. A
 //   parenthetical that is just a date "(YYYY-MM)"/"(YYYY)" supplies
-//   the year when no year field is given (TCVN_QT replaces style);
+//   the year when no year field is given (TCVN_QT replaces style).
+//   A parenthetical containing part/range words (phần, các phần,
+//   từ…đến — checked diacritic-insensitively) flags needs_review:
+//   the cut note may hide part information the key no longer shows;
 // - catalog prose never becomes a key: if the truncated input
 //   contains a comma or Vietnamese range words (đến, các phần, từ,
 //   và — checked diacritic-insensitively), or the built key falls
@@ -25,9 +34,19 @@
 // - uppercase, strip Vietnamese diacritics (NFD + drop combining
 //   marks, đ/Đ -> D), remove whitespace/newlines — EXCEPT whitespace
 //   between two digit groups, which keeps a "-" separator
-//   ("TCVN 1234 12" -> "TCVN1234-12", needs_review). Letter<->digit
-//   boundaries still join. The token "STD" right after IEEE is
-//   dropped ("IEEE Std 802.11" -> "IEEE802.11");
+//   ("TCVN 1234 12" -> "TCVN1234-12", needs_review) — unless the
+//   single separated trailing group is exactly the 4-digit year
+//   field ("TCVN 1234-1 2013" + 2013 -> "TCVN1234-1:2013", no
+//   review: the group IS the year). Letter<->digit boundaries still
+//   join. The token "STD" right after IEEE is dropped ("IEEE Std
+//   802.11" -> "IEEE802.11");
+// - `code_key_raw` = the light-normalized original code BEFORE year
+//   rewriting (after uppercase/diacritic/slash/whitespace rules and
+//   the paren cut, before dash-year -> :YYYY conversion and before
+//   appending :yearField). Relation resolution and lookup match on
+//   BOTH normalized_code and code_key_raw, so "14 TCN 58-88" (stored
+//   as 14TCN58:1988 with code_key_raw 14TCN58-88) still resolves from
+//   a yearless "14 TCN 58-88" reference;
 // - slash rule: a `/` is dropped iff the char before AND after it are
 //   both letters (ISO/TS -> ISOTS, TCVN/ISO -> TCVNISO, GB/T -> GBT);
 //   kept when it follows a digit (suffixes /Amd 1, /BXD, /AC).
@@ -80,6 +99,11 @@ export interface LightNormalized {
   /** Null only for catalog prose (see skipped_reason). */
   normalized_code: string | null;
   base_key: string | null;
+  /**
+   * Light-normalized original code BEFORE year rewriting (dash-year
+   * conversion / :yearField append). Null when no key was created.
+   */
+  code_key_raw: string | null;
   year: number | null;
   /** Year of the amendment/corrigendum segment, when present. */
   amendment_year: number | null;
@@ -88,7 +112,7 @@ export interface LightNormalized {
   needs_review: boolean;
   /** Text after the first "(" (trailing ")" stripped), if any. */
   parenthetical: string | null;
-  /** 'catalog-prose' when no key was created; otherwise null. */
+  /** 'catalog-prose' | 'multi-code' | 'prose' when no key was created; otherwise null. */
   skipped_reason: string | null;
 }
 
@@ -106,6 +130,10 @@ const DRAFT_RE = /(FDIS|FPREN|PREN|PRF|DIS)/;
 const TWO_DIGIT_YEAR_ORGS = /(ASTM|AASHTO|GBJ|TCXDVN|TCXD|TCN|GB)/;
 /** Vietnamese catalog-range words, checked on diacritic-stripped text. */
 const PROSE_WORDS_RE = /\b(DEN|CAC PHAN|TU|VA)\b/;
+/** Full prose words that are never part of a code (raw input check). */
+const PROSE_FULL_WORDS_RE = /\b(CORRIGENDUM|AMENDMENT|TECHNICAL)\b/i;
+/** Part/range words inside a cut parenthetical (diacritic-stripped). */
+const PAREN_PART_WORDS_RE = /\b(CAC PHAN|PHAN)\b|\bTU\b.*\bDEN\b/;
 
 function stripDiacriticsUpper(text: string): string {
   return text
@@ -143,18 +171,23 @@ function yearInRange(year: number): boolean {
   return year >= 1900 && year <= new Date().getFullYear() + 1;
 }
 
-function proseSkip(parenthetical: string | null): LightNormalized {
+function skipResult(parenthetical: string | null, reason: string): LightNormalized {
   return {
     normalized_code: null,
     base_key: null,
+    code_key_raw: null,
     year: null,
     amendment_year: null,
     is_amendment: false,
     is_draft: false,
     needs_review: true,
     parenthetical,
-    skipped_reason: 'catalog-prose'
+    skipped_reason: reason
   };
+}
+
+function proseSkip(parenthetical: string | null): LightNormalized {
+  return skipResult(parenthetical, 'catalog-prose');
 }
 
 export function lightNormalizeCode(
@@ -164,6 +197,14 @@ export function lightNormalizeCode(
   if (typeof code !== 'string') return null;
   const trimmed = code.trim();
   if (trimmed.length === 0) return null;
+
+  // The normalizer rejects non-codes itself, on the RAW input: a "*"
+  // means several codes were glued together (multi-code string that
+  // ingest should have split); the full words CORRIGENDUM / AMENDMENT
+  // / TECHNICAL mean prose ("ISO 9001 Technical Corrigendum 1"), not
+  // a code. Abbreviated /Amd, /Cor suffixes pass.
+  if (trimmed.includes('*')) return skipResult(null, 'multi-code');
+  if (PROSE_FULL_WORDS_RE.test(trimmed)) return skipResult(null, 'prose');
 
   // Cut at the first "(" — parenthetical content never enters the key.
   let main = trimmed;
@@ -181,19 +222,31 @@ export function lightNormalizeCode(
     return proseSkip(parenthetical);
   }
 
+  // A cut parenthetical with part/range words ("(các phần 1-6)",
+  // "(phần 1 đến 3)", "(từ 1 đến 10)") may hide part information the
+  // key no longer shows — flag for review. Date/equivalent
+  // parentheticals ("(2008-11)", "(ISO 3010:2001)") do not flag.
+  const parenPartWords =
+    parenthetical !== null &&
+    PAREN_PART_WORDS_RE.test(stripDiacriticsUpper(parenthetical));
+
   let text = mainStripped;
   // Whitespace between two digit groups keeps a "-" separator instead
   // of joining ("TCVN 1234 12" -> "TCVN1234-12"); flagged for review
-  // because the grouping is ambiguous.
-  let digitGroupSep = false;
-  text = text.replace(/(\d)\s+(\d)/g, (_m, a: string, b: string) => {
-    digitGroupSep = true;
+  // because the grouping is ambiguous — unless the single separated
+  // trailing group is exactly the year field (checked below).
+  const sepGroups: string[] = [];
+  text = text.replace(/(\d)\s+(\d+)/g, (_m, a: string, b: string) => {
+    sepGroups.push(b);
     return `${a}-${b}`;
   });
   text = text.replace(/\s+/g, '');
   // "IEEE Std 802.11" -> "IEEE802.11": STD is not part of the code.
   if (text.startsWith('IEEESTD')) text = `IEEE${text.slice('IEEESTD'.length)}`;
   let light = applySlashRule(text);
+  // code_key_raw: the light-normalized original code BEFORE any year
+  // rewriting (dash-year conversion / :yearField append below).
+  const codeKeyRaw = light;
 
   // A standard code carries an org of at least two letters before its
   // number. Digits-only, ICS-like, single-letter and letters-only
@@ -211,7 +264,19 @@ export function lightNormalizeCode(
       : null;
   const fieldYear =
     typeof yearField === 'number' && Number.isInteger(yearField) ? yearField : parenYear;
-  let needsReview = digitGroupSep || hasDoubledOrg(light);
+  // Digit-group exception: a single separated trailing group that is
+  // exactly the 4-digit year field IS the year ("TCVN 1234-1 2013" +
+  // 2013 -> dash-year rule below makes ":2013") — no review flag.
+  const digitGroupYearException =
+    sepGroups.length === 1 &&
+    !isAmendment &&
+    fieldYear !== null &&
+    sepGroups[0].length === 4 &&
+    Number(sepGroups[0]) === fieldYear;
+  let needsReview =
+    (sepGroups.length > 0 && !digitGroupYearException) ||
+    hasDoubledOrg(light) ||
+    parenPartWords;
 
   const hasColonYear = (): boolean => {
     COLON_YEAR_RE.lastIndex = 0;
@@ -258,6 +323,7 @@ export function lightNormalizeCode(
     return {
       normalized_code: normalized,
       base_key: baseKey,
+      code_key_raw: codeKeyRaw,
       year,
       amendment_year: amendmentYear,
       is_amendment: isAmendment,

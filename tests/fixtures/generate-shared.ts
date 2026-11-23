@@ -36,6 +36,7 @@ const shared = golden.map(({ input, expected }) => {
     year_field: yearField,
     normalized_code: light?.normalized_code ?? null,
     base_key: light?.base_key ?? null,
+    code_key_raw: light?.code_key_raw ?? null,
     year: light?.year ?? null,
     amendment_year: light?.amendment_year ?? null,
     is_amendment: light?.is_amendment ?? null,

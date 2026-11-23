@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS standards (
   suffix text,
   normalized_code text NOT NULL UNIQUE,         -- chuẩn hóa nhẹ, vd TCVN9386-1:2012
   base_key text NOT NULL,                       -- normalized_code bỏ đoạn ":năm"
+  code_key_raw text,                            -- khóa chuẩn hóa của code gốc, trước khi viết lại năm (vd 14TCN58-88 khi normalized_code là 14TCN58:1988); nối quan hệ/tra cứu khớp cả hai khóa
   code_display text NOT NULL,                   -- mã như nguồn hiển thị
   title_vi text,
   title_en text,
@@ -48,6 +49,8 @@ CREATE INDEX IF NOT EXISTS standards_base_key_idx
   ON standards (base_key text_pattern_ops);
 CREATE INDEX IF NOT EXISTS standards_normalized_prefix_idx
   ON standards (normalized_code text_pattern_ops);
+CREATE INDEX IF NOT EXISTS standards_code_key_raw_idx
+  ON standards (code_key_raw text_pattern_ops);
 CREATE INDEX IF NOT EXISTS standards_title_vi_trgm_idx
   ON standards USING gin (f_unaccent(lower(title_vi)) gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS standards_title_en_trgm_idx

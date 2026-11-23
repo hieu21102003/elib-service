@@ -75,6 +75,13 @@ const goldenRows: Row[] = golden.map(({ input, expected }) => ({
   source: 'golden'
 }));
 
+// Mã bổ sung vòng sửa cuối 2 (2026-11-23): kiểm chứng -YY ngoài
+// allowlist không nuốt số phần 2 chữ số trùng đuôi năm.
+const extraRows: Row[] = [
+  { code: 'ISO 1234-13', yearField: 2013, source: 'bổ sung vòng sửa cuối 2' },
+  { code: 'JIS B8009-12', yearField: 2012, source: 'bổ sung vòng sửa cuối 2' }
+];
+
 function cell(value: string | number | boolean | null): string {
   if (value === null) return '—';
   return String(value).replace(/\|/g, '\\|');
@@ -82,8 +89,8 @@ function cell(value: string | number | boolean | null): string {
 
 function table(rows: Row[], withSource: boolean): string {
   const header = withSource
-    ? '| input code | year field | normalized_code | base_key | year | amendment_year | is_amendment | is_draft | needs_review | skipped_reason | source |\n|---|---|---|---|---|---|---|---|---|---|---|'
-    : '| input code | year field | normalized_code | base_key | year | amendment_year | is_amendment | is_draft | needs_review | skipped_reason |\n|---|---|---|---|---|---|---|---|---|---|';
+    ? '| input code | year field | normalized_code | base_key | code_key_raw | year | amendment_year | is_amendment | is_draft | needs_review | skipped_reason | source |\n|---|---|---|---|---|---|---|---|---|---|---|---|'
+    : '| input code | year field | normalized_code | base_key | code_key_raw | year | amendment_year | is_amendment | is_draft | needs_review | skipped_reason |\n|---|---|---|---|---|---|---|---|---|---|---|';
   const lines = rows.map((row) => {
     const light = lightNormalizeCode(row.code, row.yearField);
     const base = [
@@ -91,6 +98,7 @@ function table(rows: Row[], withSource: boolean): string {
       cell(row.yearField),
       cell(light?.normalized_code ?? null),
       cell(light?.base_key ?? null),
+      cell(light?.code_key_raw ?? null),
       cell(light?.year ?? null),
       cell(light?.amendment_year ?? null),
       cell(light?.is_amendment ?? null),
@@ -115,7 +123,11 @@ ${table(realRows, true)}
 ## (b) Bộ mã mẫu golden (${goldenRows.length} input, year field = std_year của parser Python)
 
 ${table(goldenRows, false)}
+
+## (c) Mã bổ sung vòng sửa cuối 2
+
+${table(extraRows, true)}
 `;
 
 writeFileSync(new URL('light-normalize-table.md', samplesDir), md, 'utf8');
-console.log(`real: ${realRows.length}, golden: ${goldenRows.length}`);
+console.log(`real: ${realRows.length}, golden: ${goldenRows.length}, extra: ${extraRows.length}`);

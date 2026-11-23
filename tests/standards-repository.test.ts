@@ -63,6 +63,7 @@ function makeRow(overrides: Partial<StandardRow> = {}): StandardRow {
     suffix: null,
     normalized_code: 'TCVN9143:2022',
     base_key: 'TCVN9143',
+    code_key_raw: 'TCVN9143:2022',
     code_display: 'TCVN 9143:2022',
     title_vi: 'Tên tiếng Việt',
     title_en: null,
@@ -93,6 +94,7 @@ describe('mergeStandardFields — quy tắc gộp 4.3', () => {
     suffix: null,
     normalized_code: 'TCVN9143:2022',
     base_key: 'TCVN9143',
+    code_key_raw: 'TCVN9143:2022',
     code_display: 'TCVN 9143:2022',
     title_vi: null,
     title_en: 'English title',
@@ -347,23 +349,25 @@ class FakeDb {
       return {
         id: `id-${this.seq}`,
         org: p[0], number: p[1], part: p[2], year: p[3], amendment: p[4],
-        suffix: p[5], normalized_code: p[6], base_key: p[7], code_display: p[8],
+        suffix: p[5], normalized_code: p[6], base_key: p[7],
+        code_key_raw: p[8], code_display: p[9],
         title_vi: null, title_en: null, status: 'Unknown', issued_date: null,
         effective_date: null, ics: null, detail_level: 'stub',
-        parse_confidence: String(p[9]), is_amendment: p[10],
-        amendment_year: p[11], is_draft: p[12], needs_review: p[13],
+        parse_confidence: String(p[10]), is_amendment: p[11],
+        amendment_year: p[12], is_draft: p[13], needs_review: p[14],
         last_verified_at: null, created_at: now, updated_at: now
       };
     }
     return {
       id: `id-${this.seq}`,
       org: p[0], number: p[1], part: p[2], year: p[3], amendment: p[4],
-      suffix: p[5], normalized_code: p[6], base_key: p[7], code_display: p[8],
-      title_vi: p[9], title_en: p[10], status: p[11], issued_date: p[12],
-      effective_date: p[13], ics: p[14], detail_level: p[15],
-      parse_confidence: String(p[16]), is_amendment: p[17],
-      amendment_year: p[18], is_draft: p[19], needs_review: p[20],
-      last_verified_at: p[21], created_at: now, updated_at: now
+      suffix: p[5], normalized_code: p[6], base_key: p[7],
+      code_key_raw: p[8], code_display: p[9],
+      title_vi: p[10], title_en: p[11], status: p[12], issued_date: p[13],
+      effective_date: p[14], ics: p[15], detail_level: p[16],
+      parse_confidence: String(p[17]), is_amendment: p[18],
+      amendment_year: p[19], is_draft: p[20], needs_review: p[21],
+      last_verified_at: p[22], created_at: now, updated_at: now
     };
   }
 
@@ -375,7 +379,10 @@ class FakeDb {
       return { rows: row ? [row] : [] };
     }
     if (s.startsWith('SELECT id FROM standards WHERE normalized_code')) {
-      const row = this.standards.get(String(params[0]));
+      // Dual match: normalized_code = $1 OR code_key_raw = $1
+      const row = [...this.standards.values()].find(
+        (r) => r.normalized_code === params[0] || r.code_key_raw === params[0]
+      );
       return { rows: row ? [{ id: row.id }] : [] };
     }
     if (s.startsWith('SELECT normalized_code, base_key FROM standards WHERE id')) {
@@ -401,10 +408,10 @@ class FakeDb {
       const row = [...this.standards.values()].find((r) => r.id === params[0]);
       if (!row) return { rows: [] };
       const keys = [
-        'org', 'number', 'part', 'year', 'amendment', 'suffix', 'code_display',
-        'title_vi', 'title_en', 'status', 'issued_date', 'effective_date', 'ics',
-        'detail_level', 'parse_confidence', 'is_amendment', 'amendment_year',
-        'is_draft', 'needs_review'
+        'org', 'number', 'part', 'year', 'amendment', 'suffix', 'code_key_raw',
+        'code_display', 'title_vi', 'title_en', 'status', 'issued_date',
+        'effective_date', 'ics', 'detail_level', 'parse_confidence',
+        'is_amendment', 'amendment_year', 'is_draft', 'needs_review'
       ];
       keys.forEach((k, i) => {
         row[k] = k === 'parse_confidence' ? String(params[i + 1]) : params[i + 1];
@@ -573,6 +580,57 @@ describe('ingest với khóa chuẩn hóa nhẹ (FakeDb, không cần PostgreSQL
     expect(eq?.[3]).toBe('ISO 3010:2001');
     expect(eq?.[2]).not.toBeNull();
   });
+
+  it('code_key_raw: "14 TCN 58-88" + 1988 nối được quan hệ replaces không year', async () => {
+    const db = new FakeDb();
+    // Bản ghi lưu với năm 1988: normalized 14TCN58:1988, code_key_raw 14TCN58-88
+    const ids = await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: '14 TCN 58-88', year: 1988, name: 'Tiêu chuẩn cũ' },
+      'TCVN_VN'
+    );
+    expect(ids.length).toBe(1);
+    const stored = db.standards.get('14TCN58:1988');
+    expect(stored).toBeDefined();
+    expect(stored?.code_key_raw).toBe('14TCN58-88');
+    expect(stored?.year).toBe(1988);
+
+    // Detail khác viện dẫn "14 TCN 58-88" KHÔNG có year -> to_norm là
+    // 14TCN58-88, phải resolve qua code_key_raw (to_id được set).
+    await upsertStandardFromDetail(
+      db.asPool(),
+      { code: 'TCVN 9143:2012', year: 2012, status: 'Withdrawn', replaces: '14 TCN 58-88' },
+      'TCVN_VN'
+    );
+    const edge = db.relations.find((r) => r[1] === 'replaces' && r[3] === '14 TCN 58-88');
+    expect(edge).toBeDefined();
+    expect(edge?.[4]).toBe('14TCN58-88'); // to_norm
+    expect(edge?.[2]).toBe(stored?.id); // to_id nối qua code_key_raw
+    // Không tạo thêm bản ghi trùng cho đích đã resolve:
+    expect(db.standards.has('14TCN58-88')).toBe(false);
+    expect(db.standards.size).toBe(2);
+  });
+
+  it('chuỗi "*" và "Technical Corrigendum" bị hàm chuẩn hóa tự từ chối ở tầng ingest', async () => {
+    const db = new FakeDb();
+    const logs: string[] = [];
+    const multi = await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'ISO 9001 (2008-11)*ISO/FDIS 9001 (2015-07)', year: 2015 },
+      'TCVN_QT',
+      (m) => logs.push(m)
+    );
+    expect(multi).toEqual([]);
+    const prose = await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'ISO 9001 Technical Corrigendum 1 (2009-07)', year: 2009 },
+      'TCVN_QT',
+      (m) => logs.push(m)
+    );
+    expect(prose).toEqual([]);
+    expect(db.standards.size).toBe(0);
+    expect(logs.length).toBe(2);
+  });
 });
 
 describe.skipIf(!hasDb)('standards repository (cần PostgreSQL thật)', () => {
@@ -716,6 +774,40 @@ describe.skipIf(!hasDb)('standards repository (cần PostgreSQL thật)', () => 
 
     await pool.query(
       "DELETE FROM standards WHERE normalized_code IN ('ISO9001:2015','ISO9001:2008','ISOFDIS9001:2015','ISO9001:2015/AMD1:2016')"
+    );
+  });
+
+  it('code_key_raw: tra "14 TCN 58-88" (không năm) ra bản lưu 14TCN58:1988', async () => {
+    await upsertStandardFromSearchItem(
+      pool,
+      { code: '14 TCN 58-88', year: 1988, name: 'Tiêu chuẩn cũ' },
+      'TCVN_VN'
+    );
+    const row = await pool.query<{ code_key_raw: string }>(
+      "SELECT code_key_raw FROM standards WHERE normalized_code = '14TCN58:1988'"
+    );
+    expect(row.rows[0].code_key_raw).toBe('14TCN58-88');
+
+    const found = await lookupByCode(pool, '14 TCN 58-88');
+    expect(found?.standard.normalized_code).toBe('14TCN58:1988');
+
+    // Quan hệ replaces không year nối được qua code_key_raw:
+    await upsertStandardFromDetail(
+      pool,
+      { code: 'TCVN 9143:2012', year: 2012, status: 'Withdrawn', replaces: '14 TCN 58-88' },
+      'TCVN_VN'
+    );
+    const rel = await pool.query<{ to_code: string }>(
+      `SELECT t.normalized_code AS to_code
+         FROM standard_relations r
+         JOIN standards f ON f.id = r.from_id
+         JOIN standards t ON t.id = r.to_id
+        WHERE f.normalized_code = 'TCVN9143:2012' AND r.type = 'replaces'`
+    );
+    expect(rel.rows).toEqual([{ to_code: '14TCN58:1988' }]);
+
+    await pool.query(
+      "DELETE FROM standards WHERE normalized_code IN ('14TCN58:1988','TCVN9143:2012')"
     );
   });
 });

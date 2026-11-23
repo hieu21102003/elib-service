@@ -22,6 +22,9 @@
 // - needs_review is sticky (once flagged, stays until a human clears it);
 // - replacement relations are stored in ONE direction only: "A replacedBy
 //   B" becomes "B replaces A"; the reverse is derived at read time;
+// - relation resolution and lookup match on BOTH normalized_code and
+//   code_key_raw (pre-year-rewrite form), so a yearless reference like
+//   "14 TCN 58-88" resolves to the record stored as 14TCN58:1988;
 // - yearless relation targets NEVER get a stub with a fake key: the edge
 //   stores to_norm + to_base_key with to_id NULL unless a standard with
 //   that exact normalized_code already exists (display joins by
@@ -84,6 +87,7 @@ export interface StandardRow {
   suffix: string | null;
   normalized_code: string;
   base_key: string;
+  code_key_raw: string | null;
   code_display: string;
   title_vi: string | null;
   title_en: string | null;
@@ -111,6 +115,7 @@ interface StandardFields {
   suffix: string | null;
   normalized_code: string;
   base_key: string;
+  code_key_raw: string | null;
   code_display: string;
   title_vi: string | null;
   title_en: string | null;
@@ -267,6 +272,7 @@ function fieldsFromItem(
     suffix: cols.suffix,
     normalized_code: light.normalized_code,
     base_key: light.base_key,
+    code_key_raw: light.code_key_raw,
     code_display: item.code.trim(),
     title_vi,
     title_en,
@@ -298,6 +304,8 @@ const nonEmpty = (v: string | null | undefined): string | null =>
  *   replaces a known status;
  * - needs_review is sticky (existing OR incoming); a needs_review
  *   payload may only CREATE a record, never update an existing one;
+ * - code_key_raw (pre-year-rewrite alias key): prefer a value that
+ *   differs from normalized_code, existing first (stable alias);
  * - is_amendment is a pure function of normalized_code, so both sides
  *   agree; incoming wins by construction.
  */
@@ -316,6 +324,7 @@ export function mergeStandardFields(
     suffix: existing.suffix,
     normalized_code: existing.normalized_code,
     base_key: existing.base_key,
+    code_key_raw: existing.code_key_raw,
     code_display: existing.code_display,
     title_vi: existing.title_vi,
     title_en: existing.title_en,
@@ -348,6 +357,17 @@ export function mergeStandardFields(
     status = existing.status;
   }
 
+  // code_key_raw is an alias key (pre-year-rewrite form of the code).
+  // Prefer a value that actually differs from normalized_code — it
+  // adds a second match path for relation resolution/lookup —
+  // existing first so the alias stays stable once set.
+  const codeKeyRaw =
+    [existing.code_key_raw, incoming.code_key_raw].find(
+      (v) => v !== null && v !== existingFields.normalized_code
+    ) ??
+    existing.code_key_raw ??
+    incoming.code_key_raw;
+
   return {
     org: pickText(incoming.org, existing.org),
     number: pickText(incoming.number, existing.number),
@@ -357,6 +377,7 @@ export function mergeStandardFields(
     suffix: pickText(incoming.suffix, existing.suffix),
     normalized_code: existingFields.normalized_code,
     base_key: existingFields.base_key,
+    code_key_raw: codeKeyRaw,
     code_display: pickText(incoming.code_display, existing.code_display) ?? existing.code_display,
     title_vi: pickText(incoming.title_vi, existing.title_vi),
     title_en: pickText(incoming.title_en, existing.title_en),
@@ -394,10 +415,10 @@ async function upsertStandardRow(
     const inserted = await db.query<StandardRow>(
       `INSERT INTO standards (
          org, number, part, year, amendment, suffix, normalized_code, base_key,
-         code_display, title_vi, title_en, status, issued_date, effective_date,
-         ics, detail_level, parse_confidence, is_amendment, amendment_year,
-         is_draft, needs_review, last_verified_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+         code_key_raw, code_display, title_vi, title_en, status, issued_date,
+         effective_date, ics, detail_level, parse_confidence, is_amendment,
+         amendment_year, is_draft, needs_review, last_verified_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
        RETURNING *`,
       [
         fields.org,
@@ -408,6 +429,7 @@ async function upsertStandardRow(
         fields.suffix,
         fields.normalized_code,
         fields.base_key,
+        fields.code_key_raw,
         fields.code_display,
         fields.title_vi,
         fields.title_en,
@@ -461,11 +483,11 @@ async function upsertStandardRow(
   const updated = await db.query<StandardRow>(
     `UPDATE standards SET
        org = $2, number = $3, part = $4, year = $5, amendment = $6,
-       suffix = $7, code_display = $8, title_vi = $9, title_en = $10,
-       status = $11, issued_date = $12, effective_date = $13, ics = $14,
-       detail_level = $15, parse_confidence = $16, is_amendment = $17,
-       amendment_year = $18, is_draft = $19, needs_review = $20,
-       last_verified_at = CASE WHEN $21 THEN now() ELSE last_verified_at END,
+       suffix = $7, code_key_raw = $8, code_display = $9, title_vi = $10,
+       title_en = $11, status = $12, issued_date = $13, effective_date = $14,
+       ics = $15, detail_level = $16, parse_confidence = $17, is_amendment = $18,
+       amendment_year = $19, is_draft = $20, needs_review = $21,
+       last_verified_at = CASE WHEN $22 THEN now() ELSE last_verified_at END,
        updated_at = now()
      WHERE id = $1
      RETURNING *`,
@@ -477,6 +499,7 @@ async function upsertStandardRow(
       merged.year,
       merged.amendment,
       merged.suffix,
+      merged.code_key_raw,
       merged.code_display,
       merged.title_vi,
       merged.title_en,
@@ -509,9 +532,9 @@ async function ensureStub(
   const res = await db.query<{ id: string }>(
     `INSERT INTO standards (
        org, number, part, year, amendment, suffix, normalized_code, base_key,
-       code_display, detail_level, parse_confidence, is_amendment,
+       code_key_raw, code_display, detail_level, parse_confidence, is_amendment,
        amendment_year, is_draft, needs_review
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'stub',$10,$11,$12,$13,$14)
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'stub',$11,$12,$13,$14,$15)
      ON CONFLICT (normalized_code) DO UPDATE SET normalized_code = EXCLUDED.normalized_code
      RETURNING id`,
     [
@@ -523,6 +546,7 @@ async function ensureStub(
       cols.suffix,
       light.normalized_code,
       light.base_key,
+      light.code_key_raw,
       rawCode.trim(),
       cols.parse_confidence,
       light.is_amendment,
@@ -635,7 +659,10 @@ interface ResolvedCode {
 
 /**
  * Resolve a relation endpoint code to a standard id.
- * - exact normalized_code already stored -> that id;
+ * - a standard whose normalized_code OR code_key_raw equals the
+ *   light-normalized target -> that id (dual match: "14 TCN 58-88"
+ *   without a year resolves to the record stored as 14TCN58:1988
+ *   whose code_key_raw is 14TCN58-88);
  * - yeared + unknown -> create a stub (real key, graph stays connected);
  * - yearless + unknown -> id NULL, NO stub (display joins by base_key);
  * - un-normalizable -> id NULL, norm = UPPER(raw).
@@ -651,7 +678,7 @@ async function resolveCode(
     return { id: null, norm: upper, baseKey: upper };
   }
   const existing = await db.query<{ id: string }>(
-    'SELECT id FROM standards WHERE normalized_code = $1',
+    'SELECT id FROM standards WHERE normalized_code = $1 OR code_key_raw = $1',
     [light.normalized_code]
   );
   if (existing.rows[0]) {
@@ -848,9 +875,13 @@ function escapeLike(text: string): string {
 
 /**
  * Look up by user-typed code, normalized with the same light function.
- * - query carries ":YYYY" -> exact normalized_code match, else prefix;
- * - no year -> base_key match returning ALL editions, newest first,
- *   amendment and FDIS below the official edition; else prefix match;
+ * Matching is dual-key: normalized_code OR code_key_raw (the
+ * pre-year-rewrite form), so "14 TCN 58-88" finds the record stored
+ * as 14TCN58:1988.
+ * - query carries ":YYYY" -> exact dual-key match, else prefix;
+ * - no year -> base_key match (or code_key_raw = typed key) returning
+ *   ALL editions, newest first, amendment and FDIS below the official
+ *   edition; else prefix match;
  * - no code match (or un-normalizable query) -> trigram fallback on
  *   title (f_unaccent + LIKE, same pattern as document search).
  */
@@ -863,7 +894,7 @@ export async function lookupByCode(
   if (light !== null && light.normalized_code !== null && light.base_key !== null) {
     if (light.year !== null) {
       const exact = await pool.query<StandardRow>(
-        'SELECT * FROM standards WHERE normalized_code = $1',
+        'SELECT * FROM standards WHERE normalized_code = $1 OR code_key_raw = $1',
         [light.normalized_code]
       );
       rows = exact.rows;
@@ -876,8 +907,8 @@ export async function lookupByCode(
       }
     } else {
       const byBase = await pool.query<StandardRow>(
-        `SELECT * FROM standards WHERE base_key = $1 ${EDITION_ORDER}`,
-        [light.base_key]
+        `SELECT * FROM standards WHERE base_key = $1 OR code_key_raw = $2 ${EDITION_ORDER}`,
+        [light.base_key, light.normalized_code]
       );
       rows = byBase.rows;
       if (rows.length === 0) {
