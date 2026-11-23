@@ -100,6 +100,8 @@ Lưu ý vận hành:
 | GET | `/api/documents` | theo ma trận dưới | Danh sách + tìm kiếm tài liệu (lọc quyền ngay trong SQL) — xem mục "Danh sách & tìm kiếm tài liệu" |
 | POST | `/api/documents` | admin/editor | Upload 1 file (multipart) + metadata: `title*`, `description`, `category_id`, `tags` (cách nhau bằng dấu phẩy, tự tạo nếu chưa có), `doc_type`, `language`, `visibility`, `status`, `force` |
 | GET | `/api/documents/:id/files/:fileId/download` | theo ma trận dưới | Tải file qua storage service, tên tải = `original_filename` |
+| GET | `/api/documents/:id/preview` | theo ma trận dưới | Bản xem trước giới hạn trang (PDF đã cắt sẵn, `inline`) — xem mục "Xem trước giới hạn trang" |
+| GET | `/api/documents/:id/view` | người tạo + admin | Xem toàn bộ bản gốc trực tuyến (`inline`) |
 
 Lỗi trả dạng `{ "error": { "code": "...", "message": "<tiếng Việt>" } }`.
 
@@ -156,9 +158,21 @@ Phản hồi:
   - **Lưu ý proxy**: khi người dùng vào qua Reverse_proxy, mọi request đều đến từ IP của proxy nên tất cả dùng chung một hạn mức — trừ khi đặt `TRUST_PROXY=true` (elib khi đó tin header `X-Forwarded-For` và tính theo IP thật). Chỉ bật `TRUST_PROXY` khi elib thật sự đứng sau proxy tin cậy; mặc định `false`.
 - **Migration `002_search.sql`** tạo 2 extension `unaccent` + `pg_trgm`, hàm `f_unaccent()` và 2 index trigram. Tạo extension cần quyền DB owner/superuser — user `postgres` trong docker-compose đủ quyền (từ PostgreSQL 13+, hai extension này là "trusted" nên DB owner cũng tạo được). Chạy như mọi migration: `npm run migrate` (script chạy mọi file `*.sql` trong `migrations/` theo thứ tự tên, có bảng `_migrations` nên chạy lại an toàn).
 
+## Xem trước giới hạn trang (preview)
+
+Mọi người xem được tài liệu trực tuyến, nhưng người không phải chủ tài liệu/admin chỉ xem được **bản xem trước** gồm một số trang đầu; chủ tài liệu + admin xem toàn bộ.
+
+- **Số trang xem trước:** `min(max(1, ceil(tổng × PREVIEW_RATIO)), PREVIEW_MAX_PAGES)` — mặc định RATIO=0.2, MAX=10 (10 trang → 2, 2 trang → 1, 100 trang → 10). Nếu số trang tính ra bao phủ toàn bộ tài liệu (vd tài liệu 1 trang) thì **không có bản xem trước** (`PREVIEW_NOT_AVAILABLE`).
+- **Quyền xem trước** = quyền thấy tài liệu theo ma trận tải file ở trên (published+public: kể cả chưa đăng nhập). **Quyền xem toàn bộ** (`/view`): chỉ người tạo + admin. Lưu ý: editor vẫn giữ quyền *tải* bản gốc như hiện nay, nên giới hạn "chỉ xem trước" của editor chỉ mang tính giao diện.
+- **Chống lách:** bản xem trước là file PDF riêng đã cắt sẵn ở server (`previews/{doc_id}/v{version}/preview.pdf`, tạo bằng pdf-lib `copyPages` sang document mới — không mang metadata/outline/attachment của bản gốc). Endpoint preview chỉ stream đúng file này, không bao giờ trả bytes bản gốc cho người không có quyền toàn bộ.
+- **Job nền** (trong tiến trình, không Redis): poll bảng `document_files` (`preview_status`: pending → processing → ready/failed/unsupported), nhận việc nguyên tử bằng `FOR UPDATE SKIP LOCKED`, nhả lại job quá hạn, timeout mỗi file, trần dung lượng `PREVIEW_MAX_FILE_MB`. PDF hỏng/mã hóa → `failed`. Chỉ PDF mới có bản xem trước; định dạng khác (kể cả ảnh) là `unsupported` ở giai đoạn này.
+- **Hồi tố:** `npm run backfill:previews [-- --rate 2] [-- --limit 100] [-- --dry-run]` — idempotent, in tổng kết ready/failed/unsupported/bỏ qua.
+- **Mã lỗi ổn định:** `PREVIEW_NOT_READY` (404), `PREVIEW_UNSUPPORTED` (415), `PREVIEW_NOT_AVAILABLE` (403). Với người chưa đăng nhập, "không tồn tại" và "không có quyền" đều trả 404 `NOT_FOUND` thống nhất. Cache: tài liệu public được cache kèm ETag (gồm version + số trang preview); còn lại `Cache-Control: private, no-store`. Mỗi lượt xem đều ghi log audit (user/IP, tài liệu, thời điểm).
+- **Lưu ý Reverse_proxy:** allowlist của elib-proxy hiện **chưa có** hai route `/preview` và `/view` — cần bổ sung ở phía Reverse_proxy (Giai đoạn B) thì người dùng mới vào được qua Smart.Rail.
+
 ## Dữ liệu
 
-Bảng: `users` (role admin/editor/viewer), `sessions`, `categories` (cây `parent_id`), `documents` (có `price` nullable — chưa hiện trên form Giai đoạn 1, chưa thanh toán), `document_files` (`page_count` để trống — Giai đoạn 3 mới đếm), `tags`, `document_tags`. Migration ở `migrations/` (`001_init.sql` tạo bảng; `002_search.sql` thêm tìm kiếm không dấu), chạy bằng `npm run migrate` (có bảng `_migrations`, chạy lại an toàn).
+Bảng: `users` (role admin/editor/viewer), `sessions`, `categories` (cây `parent_id`), `documents` (có `price` nullable — chưa hiện trên form Giai đoạn 1, chưa thanh toán), `document_files` (`page_count` do job xem trước đếm; thêm các cột `preview_*` ở migration `004_previews.sql`), `tags`, `document_tags`. Migration ở `migrations/` (`001_init.sql` tạo bảng; `002_search.sql` thêm tìm kiếm không dấu; `003_standards.sql` metadata tiêu chuẩn; `004_previews.sql` cột xem trước), chạy bằng `npm run migrate` (có bảng `_migrations`, chạy lại an toàn; dự án không dùng down-migration).
 
 Danh mục seed hiện là **dữ liệu mẫu** (6 nhóm Smart.Rail CAT01–CAT06 + danh mục con của nhóm Hạ tầng) — sẽ thay bằng danh sách thật khi được cung cấp.
 

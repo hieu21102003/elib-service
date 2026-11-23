@@ -1,1 +1,41 @@
-{"dependencies":{"@fastify/cookie":"^11.0.2","@fastify/multipart":"^9.0.3","@fastify/rate-limit":"^11.3.0","@node-rs/argon2":"^2.0.2","dotenv":"^16.4.7","fastify":"^5.2.1","file-type":"^21.0.0","pg":"^8.13.1","zod":"^3.24.2"},"description":"Standalone elib backend (Phase 1: upload tài liệu) — Fastify + TypeScript + PostgreSQL, local-disk storage","devDependencies":{"@types/node":"^22.13.4","@types/pg":"^8.11.10","tsx":"^4.19.3","typescript":"^5.7.3","vitest":"^3.0.5"},"engines":{"node":">=22.15.0"},"main":"dist/server.js","name":"elib-service","private":true,"scripts":{"build":"tsc -p tsconfig.build.json","create-admin":"tsx src/scripts/create-admin.ts","dev":"tsx watch src/server.ts","migrate":"tsx src/scripts/migrate.ts","seed:categories":"tsx src/scripts/seed-categories.ts","start":"node dist/server.js","test":"vitest run","typecheck":"tsc --noEmit"},"type":"module","version":"0.1.0"}
+{
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/multipart": "^9.0.3",
+    "@fastify/rate-limit": "^11.3.0",
+    "@node-rs/argon2": "^2.0.2",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.1",
+    "file-type": "^21.0.0",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.13.1",
+    "zod": "^3.24.2"
+  },
+  "description": "Standalone elib backend (Phase 1: upload tài liệu) — Fastify + TypeScript + PostgreSQL, local-disk storage",
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "engines": {
+    "node": ">=22.15.0"
+  },
+  "main": "dist/server.js",
+  "name": "elib-service",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "create-admin": "tsx src/scripts/create-admin.ts",
+    "dev": "tsx watch src/server.ts",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "seed:categories": "tsx src/scripts/seed-categories.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "backfill:previews": "tsx src/scripts/backfill-previews.ts"
+  },
+  "type": "module",
+  "version": "0.1.0"
+}

@@ -12,12 +12,20 @@ import { LocalDiskStorage } from './storage/local-disk.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCategoryRoutes } from './routes/categories.js';
 import { registerDocumentRoutes } from './routes/documents.js';
+import { registerPreviewRoutes } from './routes/previews.js';
 import { registerInternalStandardsRoutes } from './routes/internal-standards.js';
+import { startPreviewJob } from './previews/job.js';
 
 export interface CreateAppOptions {
   pool?: pg.Pool;
   storage?: LocalDiskStorage;
   config?: AppConfig;
+  /**
+   * Bật job nền tạo bản xem trước. Mặc định TẮT khi tạo app qua createApp
+   * (test không bị vòng lặp nền quấy nhiễu); server.ts bật khi
+   * PREVIEW_JOB_ENABLED=true.
+   */
+  previewJob?: boolean;
 }
 
 export async function createApp(opts: CreateAppOptions = {}) {
@@ -88,7 +96,15 @@ export async function createApp(opts: CreateAppOptions = {}) {
   registerAuthRoutes(app, pool, cfg);
   registerCategoryRoutes(app, pool);
   registerDocumentRoutes(app, pool, storage, cfg);
+  registerPreviewRoutes(app, pool, storage, cfg);
   registerInternalStandardsRoutes(app, pool, cfg);
+
+  if (opts.previewJob) {
+    const job = startPreviewJob(pool, storage, cfg, (message) => app.log.info(message));
+    app.addHook('onClose', async () => {
+      job.stop();
+    });
+  }
 
   app.setNotFoundHandler((_request, reply) => {
     reply.code(404).send({ error: { code: 'ROUTE_NOT_FOUND', message: 'Không tìm thấy đường dẫn' } });

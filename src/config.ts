@@ -14,6 +14,13 @@ function boolFromEnv(name: string, fallback: boolean): boolean {
   return raw.toLowerCase() === 'true' || raw === '1';
 }
 
+function floatFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export interface AppConfig {
   databaseUrl: string;
   storageRoot: string;
@@ -36,10 +43,27 @@ export interface AppConfig {
    * Không bao giờ log giá trị này.
    */
   standardsInternalToken: string | null;
+  /** Tỉ lệ số trang được xem trước (PREVIEW_RATIO, mặc định 0.2, validate ở previews/page-count.ts). */
+  previewRatio: number;
+  /** Trần số trang xem trước (PREVIEW_MAX_PAGES, mặc định 10). */
+  previewMaxPages: number;
+  /** File gốc lớn hơn mức này (MB) sẽ không tạo bản xem trước (PREVIEW_MAX_FILE_MB, mặc định 50). */
+  previewMaxFileMb: number;
+  /** Chu kỳ poll của job tạo bản xem trước, ms (PREVIEW_JOB_INTERVAL_MS, mặc định 5000). */
+  previewJobIntervalMs: number;
+  /** Job 'processing' quá số phút này được nhả lại thành 'pending' (PREVIEW_LOCK_STALE_MINUTES, mặc định 15). */
+  previewLockStaleMinutes: number;
+  /** Timeout xử lý mỗi file, ms (PREVIEW_FILE_TIMEOUT_MS, mặc định 60000). */
+  previewFileTimeoutMs: number;
+  /** Bật job nền tạo bản xem trước trong server (PREVIEW_JOB_ENABLED, mặc định true). */
+  previewJobEnabled: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const maxUploadMb = intFromEnv('MAX_UPLOAD_MB', 200);
+  // Validate PREVIEW_RATIO: chỉ chấp nhận (0, 1]; giá trị sai rơi về mặc định 0.2.
+  const previewRatioRaw = floatFromEnv('PREVIEW_RATIO', 0.2);
+  const previewRatio = previewRatioRaw > 0 && previewRatioRaw <= 1 ? previewRatioRaw : 0.2;
   const storageRootRaw = env.STORAGE_ROOT ?? path.join(process.cwd(), 'storage');
   return {
     databaseUrl: env.DATABASE_URL ?? 'postgres://elib:change-me@localhost:5432/elib',
@@ -54,7 +78,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionTtlDays: intFromEnv('SESSION_TTL_DAYS', 7),
     logLevel: env.LOG_LEVEL ?? 'info',
     trustProxy: boolFromEnv('TRUST_PROXY', false),
-    standardsInternalToken: env.STANDARDS_INTERNAL_TOKEN?.trim() || null
+    standardsInternalToken: env.STANDARDS_INTERNAL_TOKEN?.trim() || null,
+    previewRatio,
+    previewMaxPages: intFromEnv('PREVIEW_MAX_PAGES', 10),
+    previewMaxFileMb: intFromEnv('PREVIEW_MAX_FILE_MB', 50),
+    previewJobIntervalMs: intFromEnv('PREVIEW_JOB_INTERVAL_MS', 5000),
+    previewLockStaleMinutes: intFromEnv('PREVIEW_LOCK_STALE_MINUTES', 15),
+    previewFileTimeoutMs: intFromEnv('PREVIEW_FILE_TIMEOUT_MS', 60000),
+    previewJobEnabled: boolFromEnv('PREVIEW_JOB_ENABLED', true)
   };
 }
 

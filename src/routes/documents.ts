@@ -7,7 +7,8 @@ import type pg from 'pg';
 import type { AppConfig } from '../config.js';
 import { withTransaction } from '../db.js';
 import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../errors.js';
-import { canDownload, canUpload } from '../auth/session.js';
+import { canDownload, canUpload, type CurrentUser } from '../auth/session.js';
+import { canViewFull } from '../previews/permissions.js';
 import { parseDocumentListQuery } from '../documents/list-query.js';
 import { searchPredicate } from '../documents/search.js';
 import { visibleDocumentsWhere } from '../documents/visibility.js';
@@ -55,13 +56,15 @@ interface DocumentListRow {
   mime_type: string | null;
   file_size: string | null;
   page_count: number | null;
+  preview_pages: number | null;
+  preview_status: string | null;
   file_created_at: Date | null;
   category_ref_id: string | null;
   category_name: string | null;
   tag_names: string[] | null;
 }
 
-function mapDocumentListRow(row: DocumentListRow) {
+function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
   return {
     id: row.id,
     title: row.title,
@@ -77,7 +80,9 @@ function mapDocumentListRow(row: DocumentListRow) {
     created_by: row.created_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
-    // File phiên bản mới nhất của tài liệu; KHÔNG bao giờ trả storage_path.
+    // Người dùng hiện tại có được xem TOÀN BỘ online không (chỉ người tạo + admin).
+    can_view_full: canViewFull(user, row),
+    // File phiên bản mới nhất của tài liệu; KHÔNG bao giờ trả storage_path/preview_path.
     file: row.file_id
       ? {
           id: row.file_id,
@@ -87,6 +92,8 @@ function mapDocumentListRow(row: DocumentListRow) {
           mime_type: row.mime_type,
           file_size: row.file_size === null ? null : Number(row.file_size),
           page_count: row.page_count,
+          preview_pages: row.preview_pages,
+          preview_status: row.preview_status,
           created_at: row.file_created_at
         }
       : null,
@@ -253,10 +260,21 @@ export function registerDocumentRoutes(
           );
           const fileRes = await client.query(
             `INSERT INTO document_files
-               (id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL)
-             RETURNING id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, created_at`,
-            [fileId, docId, version, finalRelativePath, displayName, detected.mimeType, fileSize, checksum]
+               (id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, preview_status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL,$9)
+             RETURNING id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, preview_status, created_at`,
+            [
+              fileId,
+              docId,
+              version,
+              finalRelativePath,
+              displayName,
+              detected.mimeType,
+              fileSize,
+              checksum,
+              // PDF -> job nền sẽ tạo bản xem trước; định dạng khác chưa hỗ trợ.
+              detected.kind === 'pdf' ? 'pending' : 'unsupported'
+            ]
           );
           for (const tagName of tagNames) {
             const normalized = tagName.toLowerCase();
@@ -293,6 +311,7 @@ export function registerDocumentRoutes(
           file_size: Number(createdFile.file_size),
           checksum_sha256: createdFile.checksum_sha256,
           page_count: createdFile.page_count,
+          preview_status: createdFile.preview_status,
           created_at: createdFile.created_at
           // storage_path tương đối chỉ trả khi cần debug nội bộ? Không trả đường dẫn tuyệt đối.
         },
@@ -346,7 +365,8 @@ export function registerDocumentRoutes(
            d.id, d.title, d.slug, d.description, d.category_id, d.doc_type, d.language,
            d.visibility, d.status, d.price, d.created_by, d.created_at, d.updated_at,
            f.id AS file_id, f.document_id AS file_document_id, f.version AS file_version,
-           f.original_filename, f.mime_type, f.file_size, f.page_count, f.created_at AS file_created_at,
+           f.original_filename, f.mime_type, f.file_size, f.page_count,
+           f.preview_pages, f.preview_status, f.created_at AS file_created_at,
            c.id AS category_ref_id, c.name AS category_name,
            COALESCE((
              SELECT array_agg(t.name ORDER BY t.name)
@@ -356,7 +376,8 @@ export function registerDocumentRoutes(
          FROM documents d
          LEFT JOIN LATERAL (
            SELECT df.id, df.document_id, df.version, df.original_filename,
-                  df.mime_type, df.file_size, df.page_count, df.created_at
+                  df.mime_type, df.file_size, df.page_count, df.preview_pages,
+                  df.preview_status, df.created_at
            FROM document_files df
            WHERE df.document_id = d.id
            ORDER BY df.version DESC, df.created_at DESC
@@ -369,7 +390,7 @@ export function registerDocumentRoutes(
         listParams
       );
 
-      const data = (listRes.rows as DocumentListRow[]).map(mapDocumentListRow);
+      const data = (listRes.rows as DocumentListRow[]).map((row) => mapDocumentListRow(row, user));
       return reply.send({ data, total, limit: query.limit, offset: query.offset });
     }
   );
