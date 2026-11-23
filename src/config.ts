@@ -30,6 +30,12 @@ export interface AppConfig {
    * dùng cho rate limit). Mặc định false; đặt TRUST_PROXY=true khi có proxy tin cậy.
    */
   trustProxy: boolean;
+  /**
+   * Bí mật dùng chung cho API nội bộ /internal/standards/* (Reverse_proxy
+   * gửi qua header X-Internal-Token). Chưa đặt → API nội bộ tắt (503).
+   * Không bao giờ log giá trị này.
+   */
+  standardsInternalToken: string | null;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -47,7 +53,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     cookieSecure: boolFromEnv('COOKIE_SECURE', false),
     sessionTtlDays: intFromEnv('SESSION_TTL_DAYS', 7),
     logLevel: env.LOG_LEVEL ?? 'info',
-    trustProxy: boolFromEnv('TRUST_PROXY', false)
+    trustProxy: boolFromEnv('TRUST_PROXY', false),
+    standardsInternalToken: env.STANDARDS_INTERNAL_TOKEN?.trim() || null
   };
 }
 

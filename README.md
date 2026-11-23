@@ -27,11 +27,11 @@ npm run build && npm start   # hoặc: npm run dev
 
 Mở `http://<máy>:3200/` để dùng trang upload tạm. Kiểm tra sức khỏe: `GET /health`.
 
-Biến môi trường chính (xem `.env.example`): `DATABASE_URL`, `STORAGE_ROOT`, `MAX_UPLOAD_MB` (mặc định 200), `PORT` (mặc định 3200), `SESSION_SECRET`, `COOKIE_SECURE` (đặt `false` khi chạy HTTP trong LAN, `true` khi có HTTPS), `SESSION_TTL_DAYS`, `TRUST_PROXY` (mặc định `false`; đặt `true` khi đứng sau Reverse_proxy/Caddy để rate limit tính theo IP thật của người dùng thay vì IP của proxy — xem mục "Danh sách & tìm kiếm tài liệu").
+Biến môi trường chính (xem `.env.example`): `DATABASE_URL`, `STORAGE_ROOT`, `MAX_UPLOAD_MB` (mặc định 200), `PORT` (mặc định 3200), `SESSION_SECRET`, `COOKIE_SECURE` (đặt `false` khi chạy HTTP trong LAN, `true` khi có HTTPS), `SESSION_TTL_DAYS`, `TRUST_PROXY` (mặc định `false`; đặt `true` khi đứng sau Reverse_proxy/Caddy để rate limit tính theo IP thật của người dùng thay vì IP của proxy — xem mục "Danh sách & tìm kiếm tài liệu"), `STANDARDS_INTERNAL_TOKEN` (bí mật cho API nội bộ `/internal/standards/*`; để trống = tắt).
 
 ## Deploy trên server (Docker)
 
-Cách chạy khuyến nghị trên server: Docker Compose gồm 2 service — `postgres` (PostgreSQL 16, không mở cổng ra host) và `elib` (build từ `Dockerfile`, chỉ nghe `127.0.0.1:3200` trên host). File tài liệu nằm trong volume `elib_storage`, dữ liệu DB trong volume `pgdata`.
+Cách chạy khuyến nghị trên server: Docker Compose gồm 2 service — `postgres` (PostgreSQL 16, không mở cổng ra host) và `elib` (build từ `Dockerfile`, **không publish cổng ra host** — chỉ nghe trong mạng Docker). File tài liệu nằm trong volume `elib_storage`, dữ liệu DB trong volume `pgdata`.
 
 ```bash
 # 1. Lấy code về server (clone repo khi đã có, hoặc copy thư mục elib-service)
@@ -51,21 +51,22 @@ docker compose exec elib npm run migrate
 docker compose exec elib npm run seed:categories
 docker compose exec elib npm run create-admin -- --email admin@congty.vn --password 'MatKhauManh' --name 'Quản trị'
 
-# 5. Kiểm tra
-curl http://127.0.0.1:3200/health
+# 5. Kiểm tra (elib không publish cổng ra host nên gọi từ trong container)
+docker compose exec elib wget -qO- http://127.0.0.1:3200/health
 ```
 
 Sau đó nối Reverse_proxy vào elib (phần tích hợp `/api/elib/*` đã có sẵn trong Reverse_proxy):
 
 - Reverse_proxy chạy **Docker** (khuyến nghị): hai bên dùng chung Docker network tên cố định `elib-net` — Reverse_proxy compose khai báo mạng này (tự tạo khi `docker compose up`, hoặc tạo tay `docker network create elib-net`), compose của elib ở trên tham gia bằng external network cùng tên (chỉ service `elib`). Đặt phía Reverse_proxy: `ELIB_BASE_URL=http://elib-service:3200` (tên container của elib). Kiểm tra: `docker exec reverse-proxy wget -qO- http://elib-service:3200/health`.
-  - **Lưu ý mạng Docker:** cách cũ `host.docker.internal:3200` không dùng được — `host.docker.internal` trỏ tới IP cổng cầu nối (bridge gateway, ví dụ `172.17.0.1`), không phải `127.0.0.1` của host, mà cổng elib chỉ bind `127.0.0.1:3200` nên container khác gọi qua bridge sẽ bị từ chối. Mạng dùng chung `elib-net` tránh được chuyện này và giữ elib không lộ ra LAN.
-- Reverse_proxy chạy **Node trực tiếp** trên cùng máy: `ELIB_BASE_URL=http://127.0.0.1:3200`.
+  - **Lưu ý mạng Docker:** cách cũ `host.docker.internal:3200` không dùng được — `host.docker.internal` trỏ tới IP cổng cầu nối (bridge gateway, ví dụ `172.17.0.1`), không phải `127.0.0.1` của host. Mạng dùng chung `elib-net` tránh được chuyện này và giữ elib không lộ ra LAN.
+- Reverse_proxy chạy **Node trực tiếp** trên cùng máy: không còn đường vào qua cổng host (elib không publish 3200 nữa) — chạy Reverse_proxy bằng Docker để dùng `elib-net`, hoặc chạy elib bằng Node trực tiếp khi dev.
 - Đặt `TRUST_PROXY=true` khi đứng sau Caddy/nginx, rồi khởi động lại Reverse_proxy.
 - Mở Smart.Rail, vào mục **Tài liệu**, đăng nhập bằng admin vừa tạo, upload thử 1 file và tải xuống để kiểm tra end-to-end.
 
 Lưu ý vận hành:
 
-- Cổng 3200 của elib **chỉ** mở ở localhost trên host; đừng mở thẳng ra Internet — người dùng luôn vào qua Reverse_proxy.
+- Cổng 3200 của elib **không** publish ra host (quyết định 2026-11-23); elib chỉ tới được qua mạng Docker `elib-net` — người dùng luôn vào qua Reverse_proxy. Kiểm tra sức khỏe từ host: `docker compose exec elib wget -qO- http://127.0.0.1:3200/health`.
+- API nội bộ `/internal/standards/*` (metadata tiêu chuẩn) cần biến `STANDARDS_INTERNAL_TOKEN` (cùng giá trị ở Reverse_proxy, gửi qua header `X-Internal-Token`); chưa đặt thì API này trả 503. Migration `003_standards.sql` tạo các bảng `standards`, `standard_sources`, `standard_relations`, `search_log` và cột `documents.standard_id` (tài liệu gắn tiêu chuẩn không được có giá bán).
 - Sao lưu định kỳ cả 2 volume: `pgdata` (database) và `elib_storage` (file gốc — đây là tài sản thật). Ví dụ dump DB: `docker compose exec postgres pg_dump -U elib elib > backup.sql`.
 - Muốn file nằm thẳng trên ổ đĩa lớn của máy thay vì Docker volume: sửa `docker-compose.yml`, thay volume `elib_storage` bằng bind-mount (ví dụ `/data/elib-storage:/data/storage`) và `sudo chown -R 1000:1000 /data/elib-storage`. Tương tự, volume `pgdata` cũng có thể đổi thành bind-mount (ví dụ `/srv/elib/pgdata:/var/lib/postgresql/data`) nếu muốn DB nằm trên phân vùng dữ liệu riêng thay vì ổ hệ thống.
 - Checklist kiểm tra lần chạy đầu (migrate → đăng nhập → upload → tải file, gồm cả qua Reverse_proxy): xem `docs/first-run-checklist.md`.

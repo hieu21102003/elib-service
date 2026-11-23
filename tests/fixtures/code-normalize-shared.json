@@ -1,0 +1,397 @@
+[
+  {
+    "input": "TCVN 9143:2022",
+    "normalized": "TCVN9143:2022",
+    "base_key": "TCVN9143"
+  },
+  {
+    "input": "TCVN 9143:2012",
+    "normalized": "TCVN9143:2012",
+    "base_key": "TCVN9143"
+  },
+  {
+    "input": "TCVN 9386-1:2012",
+    "normalized": "TCVN9386-1:2012",
+    "base_key": "TCVN9386-1"
+  },
+  {
+    "input": "TCVN9386",
+    "normalized": "TCVN9386",
+    "base_key": "TCVN9386"
+  },
+  {
+    "input": "ISO 9001:2015",
+    "normalized": "ISO9001:2015",
+    "base_key": "ISO9001"
+  },
+  {
+    "input": "tcvn 9386-1",
+    "normalized": "TCVN9386-1",
+    "base_key": "TCVN9386-1"
+  },
+  {
+    "input": "BS EN ISO 9001:2015",
+    "normalized": "BSENISO9001:2015",
+    "base_key": "BSENISO9001"
+  },
+  {
+    "input": "BS EN 13146-3:2019",
+    "normalized": "BSEN13146-3:2019",
+    "base_key": "BSEN13146-3"
+  },
+  {
+    "input": "GB/T 19001-2016",
+    "normalized": "GB/T19001:2016",
+    "base_key": "GB/T19001"
+  },
+  {
+    "input": "GB/Z 12345:2020",
+    "normalized": "GB/Z12345:2020",
+    "base_key": "GB/Z12345"
+  },
+  {
+    "input": "TCVN ISO 9001:2015",
+    "normalized": "TCVNISO9001:2015",
+    "base_key": "TCVNISO9001"
+  },
+  {
+    "input": "TCVN EN 1992-1-1:2022",
+    "normalized": "TCVNEN1992-1-1:2022",
+    "base_key": "TCVNEN1992-1-1"
+  },
+  {
+    "input": "DIN EN 1090-2:2018",
+    "normalized": "DINEN1090-2:2018",
+    "base_key": "DINEN1090-2"
+  },
+  {
+    "input": "EN ISO 1234:2020",
+    "normalized": "ENISO1234:2020",
+    "base_key": "ENISO1234"
+  },
+  {
+    "input": "DIN ISO 9001:2015",
+    "normalized": "DINISO9001:2015",
+    "base_key": "DINISO9001"
+  },
+  {
+    "input": "TCVN/ISO 9001:2015",
+    "normalized": "TCVN/ISO9001:2015",
+    "base_key": "TCVN/ISO9001"
+  },
+  {
+    "input": "QCVN 02:2021/BXD",
+    "normalized": "QCVN02:2021/BXD",
+    "base_key": "QCVN02"
+  },
+  {
+    "input": "BS EN 13146-1 đến 10:2019",
+    "normalized": "BSEN13146-1-10:2019",
+    "base_key": "BSEN13146-1-10"
+  },
+  {
+    "input": "EN 13481 (các phần 1, 2, 5, 6, 7)",
+    "normalized": "EN13481-1-2-5-6-7",
+    "base_key": "EN13481-1-2-5-6-7"
+  },
+  {
+    "input": "EN 1993-1-10:2005",
+    "normalized": "EN1993-1-10:2005",
+    "base_key": "EN1993-1-10"
+  },
+  {
+    "input": "TCVN 13566:2022 (các phần 1-6)",
+    "normalized": "TCVN13566-1-6:2022",
+    "base_key": "TCVN13566-1-6"
+  },
+  {
+    "input": "TCVN 13566 (từ 1 đến 10, 2019)",
+    "normalized": "TCVN13566-1-10:2019",
+    "base_key": "TCVN13566-1-10"
+  },
+  {
+    "input": "TCVN 13566-1,2,3,4,5:2022",
+    "normalized": "TCVN13566-1-2-3-4-5:2022",
+    "base_key": "TCVN13566-1-2-3-4-5"
+  },
+  {
+    "input": "TCVN 13566-1, 2, 3, 4 và 5:2022",
+    "normalized": "TCVN13566-1-2-3-4-5:2022",
+    "base_key": "TCVN13566-1-2-3-4-5"
+  },
+  {
+    "input": "TCVN 13566 từ 1 đến 10:2019",
+    "normalized": "TCVN13566-1-10:2019",
+    "base_key": "TCVN13566-1-10"
+  },
+  {
+    "input": "TCVN 1234:2020 (phần 1 đến 3)",
+    "normalized": "TCVN1234-1-3:2020",
+    "base_key": "TCVN1234-1-3"
+  },
+  {
+    "input": "TCVN 1234:2020 (các phần 1, 3, 5)",
+    "normalized": "TCVN1234-1-3-5:2020",
+    "base_key": "TCVN1234-1-3-5"
+  },
+  {
+    "input": "TCVN 13566 (-1 đến 10, 2019)",
+    "normalized": "TCVN13566-1-10:2019",
+    "base_key": "TCVN13566-1-10"
+  },
+  {
+    "input": "TCVN 1234-1 đến 200:2020",
+    "normalized": "TCVN1234-1-200:2020",
+    "base_key": "TCVN1234-1-200"
+  },
+  {
+    "input": "TCVN 7447-4-41:2010",
+    "normalized": "TCVN7447-4-41:2010",
+    "base_key": "TCVN7447-4-41"
+  },
+  {
+    "input": "EN 1994-1-1:2004/AC:2009",
+    "normalized": "EN1994-1-1:2004/AC:2009",
+    "base_key": "EN1994-1-1"
+  },
+  {
+    "input": "TCCS 37:2022/TCĐBVN",
+    "normalized": "TCCS37:2022/TCĐBVN",
+    "base_key": "TCCS37"
+  },
+  {
+    "input": "ISO 231123-1/AC:2009",
+    "normalized": "ISO231123-1/AC:2009",
+    "base_key": "ISO231123-1"
+  },
+  {
+    "input": "ISO 9001:2015/AMD1:2016",
+    "normalized": "ISO9001:2015/AMD1:2016",
+    "base_key": "ISO9001"
+  },
+  {
+    "input": "ISO 9001:2015/Amd 1:2016",
+    "normalized": "ISO9001:2015/AMD1:2016",
+    "base_key": "ISO9001"
+  },
+  {
+    "input": "ISO 9001:2015/Cor 1:2019",
+    "normalized": "ISO9001:2015/COR1:2019",
+    "base_key": "ISO9001"
+  },
+  {
+    "input": "ISO 9001:2015/COR1:2019",
+    "normalized": "ISO9001:2015/COR1:2019",
+    "base_key": "ISO9001"
+  },
+  {
+    "input": "EN 1994-1-1:2004/Amd 1:2010",
+    "normalized": "EN1994-1-1:2004/AMD1:2010",
+    "base_key": "EN1994-1-1"
+  },
+  {
+    "input": "EN 1994-1-1:2004+A1:2010",
+    "normalized": "EN1994-1-1:2004+A1:2010",
+    "base_key": "EN1994-1-1"
+  },
+  {
+    "input": "IEC 60850/2007-02",
+    "normalized": "IEC60850:2007-02",
+    "base_key": "IEC60850"
+  },
+  {
+    "input": "EN 50122-1-2011",
+    "normalized": "EN50122-1:2011",
+    "base_key": "EN50122-1"
+  },
+  {
+    "input": "GB 50157-2003",
+    "normalized": "GB50157:2003",
+    "base_key": "GB50157"
+  },
+  {
+    "input": "EN 1337-1/2011",
+    "normalized": "EN1337-1:2011",
+    "base_key": "EN1337-1"
+  },
+  {
+    "input": "EN 50172/2004",
+    "normalized": "EN50172:2004",
+    "base_key": "EN50172"
+  },
+  {
+    "input": "TCVN 1234-1 2013",
+    "normalized": "TCVN1234-1:2013",
+    "base_key": "TCVN1234-1"
+  },
+  {
+    "input": "TCVN 13695 (BS EN 13146-1 đến 10:2019)",
+    "normalized": "TCVN13695",
+    "base_key": "TCVN13695"
+  },
+  {
+    "input": "TCVN 13695-1:2023 (BS EN 13146-1:2019)",
+    "normalized": "TCVN13695-1:2023",
+    "base_key": "TCVN13695-1"
+  },
+  {
+    "input": "TCVN 9386-1:2012 (ISO 3010:2001)",
+    "normalized": "TCVN9386-1:2012",
+    "base_key": "TCVN9386-1"
+  },
+  {
+    "input": "TCVN 13695-1:2023 (BS EN 13146-1:2019",
+    "normalized": "TCVN13695-1:2023",
+    "base_key": "TCVN13695-1"
+  },
+  {
+    "input": "JIS E 1102",
+    "normalized": "JISE1102",
+    "base_key": "JISE1102"
+  },
+  {
+    "input": "ASTM D 4719-07",
+    "normalized": "ASTMD4719:2007",
+    "base_key": "ASTMD4719"
+  },
+  {
+    "input": "AASHTO T27-99",
+    "normalized": "AASHTOT27:1999",
+    "base_key": "AASHTOT27"
+  },
+  {
+    "input": "GBJ 22-87",
+    "normalized": "GBJ22:1987",
+    "base_key": "GBJ22"
+  },
+  {
+    "input": "JIS B8009-12",
+    "normalized": "JISB8009-12",
+    "base_key": "JISB8009-12"
+  },
+  {
+    "input": "IEEE 802.11",
+    "normalized": "IEEE802.11",
+    "base_key": "IEEE802.11"
+  },
+  {
+    "input": "ASME B1.20.7",
+    "normalized": "ASMEB1.20.7",
+    "base_key": "ASMEB1.20.7"
+  },
+  {
+    "input": "IEC62278:2002",
+    "normalized": "IEC62278:2002",
+    "base_key": "IEC62278"
+  },
+  {
+    "input": "JISC1731-2",
+    "normalized": "JISC1731-2",
+    "base_key": "JISC1731-2"
+  },
+  {
+    "input": "ASTM C172-04",
+    "normalized": "ASTMC172:2004",
+    "base_key": "ASTMC172"
+  },
+  {
+    "input": "EN 301489-18",
+    "normalized": "EN301489-18",
+    "base_key": "EN301489-18"
+  },
+  {
+    "input": "Ulc 779-9",
+    "normalized": "ULC779-9",
+    "base_key": "ULC779-9"
+  },
+  {
+    "input": "TCVN 4756",
+    "normalized": "TCVN4756",
+    "base_key": "TCVN4756"
+  },
+  {
+    "input": "EN 50129",
+    "normalized": "EN50129",
+    "base_key": "EN50129"
+  },
+  {
+    "input": "IEC 60529",
+    "normalized": "IEC60529",
+    "base_key": "IEC60529"
+  },
+  {
+    "input": "ISO 231123-1:1231",
+    "normalized": "ISO231123-1",
+    "base_key": "ISO231123-1"
+  },
+  {
+    "input": "ISO 231123-1/1231",
+    "normalized": "ISO231123-1",
+    "base_key": "ISO231123-1"
+  },
+  {
+    "input": "ISO 231123-1:1231/AC:2009",
+    "normalized": "ISO231123-1/AC:2009",
+    "base_key": "ISO231123-1"
+  },
+  {
+    "input": "TCVN 1234 1231",
+    "normalized": "TCVN1234",
+    "base_key": "TCVN1234"
+  },
+  {
+    "input": "TCVN 1234 12",
+    "normalized": "TCVN1234/12",
+    "base_key": "TCVN1234"
+  },
+  {
+    "input": "TCVN 9143:1800",
+    "normalized": "TCVN9143",
+    "base_key": "TCVN9143"
+  },
+  {
+    "input": "XYZ 999:1800",
+    "normalized": "XYZ999",
+    "base_key": "XYZ999"
+  },
+  {
+    "input": "TCVN 1234:2020 (rev 1)",
+    "normalized": "TCVN1234:2020",
+    "base_key": "TCVN1234"
+  },
+  {
+    "input": "TCVN 13566 (2019)",
+    "normalized": "TCVN13566:2019",
+    "base_key": "TCVN13566"
+  },
+  {
+    "input": "TCVN 13566:2020 (2019)",
+    "normalized": "TCVN13566:2020",
+    "base_key": "TCVN13566"
+  },
+  {
+    "input": "TCVN  9366-1: 2012",
+    "normalized": "TCVN9366-1:2012",
+    "base_key": "TCVN9366-1"
+  },
+  {
+    "input": "TCVN 7161-\n13:2024",
+    "normalized": "TCVN7161-13:2024",
+    "base_key": "TCVN7161-13"
+  },
+  {
+    "input": "ENEN 1234:2020",
+    "normalized": "EN1234:2020",
+    "base_key": "EN1234"
+  },
+  {
+    "input": "EN EN 1234:2020",
+    "normalized": "EN1234:2020",
+    "base_key": "EN1234"
+  },
+  {
+    "input": "IEEE Std 802.11:2020",
+    "normalized": "IEEE802.11:2020",
+    "base_key": "IEEE802.11"
+  }
+]

@@ -12,6 +12,7 @@ import { LocalDiskStorage } from './storage/local-disk.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCategoryRoutes } from './routes/categories.js';
 import { registerDocumentRoutes } from './routes/documents.js';
+import { registerInternalStandardsRoutes } from './routes/internal-standards.js';
 
 export interface CreateAppOptions {
   pool?: pg.Pool;
@@ -87,6 +88,7 @@ export async function createApp(opts: CreateAppOptions = {}) {
   registerAuthRoutes(app, pool, cfg);
   registerCategoryRoutes(app, pool);
   registerDocumentRoutes(app, pool, storage, cfg);
+  registerInternalStandardsRoutes(app, pool, cfg);
 
   app.setNotFoundHandler((_request, reply) => {
     reply.code(404).send({ error: { code: 'ROUTE_NOT_FOUND', message: 'Không tìm thấy đường dẫn' } });
