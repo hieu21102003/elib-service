@@ -1,397 +1,776 @@
 [
   {
     "input": "TCVN 9143:2022",
-    "normalized": "TCVN9143:2022",
-    "base_key": "TCVN9143"
+    "year_field": 2022,
+    "normalized_code": "TCVN9143:2022",
+    "base_key": "TCVN9143",
+    "year": 2022,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 9143:2012",
-    "normalized": "TCVN9143:2012",
-    "base_key": "TCVN9143"
+    "year_field": 2012,
+    "normalized_code": "TCVN9143:2012",
+    "base_key": "TCVN9143",
+    "year": 2012,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 9386-1:2012",
-    "normalized": "TCVN9386-1:2012",
-    "base_key": "TCVN9386-1"
+    "year_field": 2012,
+    "normalized_code": "TCVN9386-1:2012",
+    "base_key": "TCVN9386-1",
+    "year": 2012,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN9386",
-    "normalized": "TCVN9386",
-    "base_key": "TCVN9386"
+    "year_field": null,
+    "normalized_code": "TCVN9386",
+    "base_key": "TCVN9386",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ISO 9001:2015",
-    "normalized": "ISO9001:2015",
-    "base_key": "ISO9001"
+    "year_field": 2015,
+    "normalized_code": "ISO9001:2015",
+    "base_key": "ISO9001",
+    "year": 2015,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "tcvn 9386-1",
-    "normalized": "TCVN9386-1",
-    "base_key": "TCVN9386-1"
+    "year_field": null,
+    "normalized_code": "TCVN9386-1",
+    "base_key": "TCVN9386-1",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "BS EN ISO 9001:2015",
-    "normalized": "BSENISO9001:2015",
-    "base_key": "BSENISO9001"
+    "year_field": 2015,
+    "normalized_code": "BSENISO9001:2015",
+    "base_key": "BSENISO9001",
+    "year": 2015,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "BS EN 13146-3:2019",
-    "normalized": "BSEN13146-3:2019",
-    "base_key": "BSEN13146-3"
+    "year_field": 2019,
+    "normalized_code": "BSEN13146-3:2019",
+    "base_key": "BSEN13146-3",
+    "year": 2019,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "GB/T 19001-2016",
-    "normalized": "GB/T19001:2016",
-    "base_key": "GB/T19001"
+    "year_field": 2016,
+    "normalized_code": "GBT19001-2016:2016",
+    "base_key": "GBT19001-2016",
+    "year": 2016,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "GB/Z 12345:2020",
-    "normalized": "GB/Z12345:2020",
-    "base_key": "GB/Z12345"
+    "year_field": 2020,
+    "normalized_code": "GBZ12345:2020",
+    "base_key": "GBZ12345",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN ISO 9001:2015",
-    "normalized": "TCVNISO9001:2015",
-    "base_key": "TCVNISO9001"
+    "year_field": 2015,
+    "normalized_code": "TCVNISO9001:2015",
+    "base_key": "TCVNISO9001",
+    "year": 2015,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN EN 1992-1-1:2022",
-    "normalized": "TCVNEN1992-1-1:2022",
-    "base_key": "TCVNEN1992-1-1"
+    "year_field": 2022,
+    "normalized_code": "TCVNEN1992-1-1:2022",
+    "base_key": "TCVNEN1992-1-1",
+    "year": 2022,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "DIN EN 1090-2:2018",
-    "normalized": "DINEN1090-2:2018",
-    "base_key": "DINEN1090-2"
+    "year_field": 2018,
+    "normalized_code": "DINEN1090-2:2018",
+    "base_key": "DINEN1090-2",
+    "year": 2018,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN ISO 1234:2020",
-    "normalized": "ENISO1234:2020",
-    "base_key": "ENISO1234"
+    "year_field": 2020,
+    "normalized_code": "ENISO1234:2020",
+    "base_key": "ENISO1234",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "DIN ISO 9001:2015",
-    "normalized": "DINISO9001:2015",
-    "base_key": "DINISO9001"
+    "year_field": 2015,
+    "normalized_code": "DINISO9001:2015",
+    "base_key": "DINISO9001",
+    "year": 2015,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN/ISO 9001:2015",
-    "normalized": "TCVN/ISO9001:2015",
-    "base_key": "TCVN/ISO9001"
+    "year_field": 2015,
+    "normalized_code": "TCVNISO9001:2015",
+    "base_key": "TCVNISO9001",
+    "year": 2015,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "QCVN 02:2021/BXD",
-    "normalized": "QCVN02:2021/BXD",
-    "base_key": "QCVN02"
+    "year_field": 2021,
+    "normalized_code": "QCVN02:2021/BXD",
+    "base_key": "QCVN02",
+    "year": 2021,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "BS EN 13146-1 đến 10:2019",
-    "normalized": "BSEN13146-1-10:2019",
-    "base_key": "BSEN13146-1-10"
+    "year_field": 2019,
+    "normalized_code": "BSEN13146-1DEN10:2019",
+    "base_key": "BSEN13146-1DEN10",
+    "year": 2019,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 13481 (các phần 1, 2, 5, 6, 7)",
-    "normalized": "EN13481-1-2-5-6-7",
-    "base_key": "EN13481-1-2-5-6-7"
+    "year_field": null,
+    "normalized_code": "EN13481(CACPHAN1,2,5,6,7)",
+    "base_key": "EN13481(CACPHAN1,2,5,6,7)",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 1993-1-10:2005",
-    "normalized": "EN1993-1-10:2005",
-    "base_key": "EN1993-1-10"
+    "year_field": 2005,
+    "normalized_code": "EN1993-1-10:2005",
+    "base_key": "EN1993-1-10",
+    "year": 2005,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566:2022 (các phần 1-6)",
-    "normalized": "TCVN13566-1-6:2022",
-    "base_key": "TCVN13566-1-6"
+    "year_field": 2022,
+    "normalized_code": "TCVN13566:2022(CACPHAN1-6):2022",
+    "base_key": "TCVN13566:2022(CACPHAN1-6)",
+    "year": 2022,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566 (từ 1 đến 10, 2019)",
-    "normalized": "TCVN13566-1-10:2019",
-    "base_key": "TCVN13566-1-10"
+    "year_field": 2019,
+    "normalized_code": "TCVN13566(TU1DEN10,2019):2019",
+    "base_key": "TCVN13566(TU1DEN10,2019)",
+    "year": 2019,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566-1,2,3,4,5:2022",
-    "normalized": "TCVN13566-1-2-3-4-5:2022",
-    "base_key": "TCVN13566-1-2-3-4-5"
+    "year_field": 2022,
+    "normalized_code": "TCVN13566-1,2,3,4,5:2022",
+    "base_key": "TCVN13566-1,2,3,4,5",
+    "year": 2022,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566-1, 2, 3, 4 và 5:2022",
-    "normalized": "TCVN13566-1-2-3-4-5:2022",
-    "base_key": "TCVN13566-1-2-3-4-5"
+    "year_field": 2022,
+    "normalized_code": "TCVN13566-1,2,3,4VA5:2022",
+    "base_key": "TCVN13566-1,2,3,4VA5",
+    "year": 2022,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566 từ 1 đến 10:2019",
-    "normalized": "TCVN13566-1-10:2019",
-    "base_key": "TCVN13566-1-10"
+    "year_field": 2019,
+    "normalized_code": "TCVN13566TU1DEN10:2019",
+    "base_key": "TCVN13566TU1DEN10",
+    "year": 2019,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 1234:2020 (phần 1 đến 3)",
-    "normalized": "TCVN1234-1-3:2020",
-    "base_key": "TCVN1234-1-3"
+    "year_field": 2020,
+    "normalized_code": "TCVN1234:2020(PHAN1DEN3):2020",
+    "base_key": "TCVN1234:2020(PHAN1DEN3)",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 1234:2020 (các phần 1, 3, 5)",
-    "normalized": "TCVN1234-1-3-5:2020",
-    "base_key": "TCVN1234-1-3-5"
+    "year_field": 2020,
+    "normalized_code": "TCVN1234:2020(CACPHAN1,3,5):2020",
+    "base_key": "TCVN1234:2020(CACPHAN1,3,5)",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566 (-1 đến 10, 2019)",
-    "normalized": "TCVN13566-1-10:2019",
-    "base_key": "TCVN13566-1-10"
+    "year_field": 2019,
+    "normalized_code": "TCVN13566(-1DEN10,2019):2019",
+    "base_key": "TCVN13566(-1DEN10,2019)",
+    "year": 2019,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 1234-1 đến 200:2020",
-    "normalized": "TCVN1234-1-200:2020",
-    "base_key": "TCVN1234-1-200"
+    "year_field": 2020,
+    "normalized_code": "TCVN1234-1DEN200:2020",
+    "base_key": "TCVN1234-1DEN200",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 7447-4-41:2010",
-    "normalized": "TCVN7447-4-41:2010",
-    "base_key": "TCVN7447-4-41"
+    "year_field": 2010,
+    "normalized_code": "TCVN7447-4-41:2010",
+    "base_key": "TCVN7447-4-41",
+    "year": 2010,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 1994-1-1:2004/AC:2009",
-    "normalized": "EN1994-1-1:2004/AC:2009",
-    "base_key": "EN1994-1-1"
+    "year_field": 2004,
+    "normalized_code": "EN1994-1-1:2004/AC:2009",
+    "base_key": "EN1994-1-1",
+    "year": 2004,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "TCCS 37:2022/TCĐBVN",
-    "normalized": "TCCS37:2022/TCĐBVN",
-    "base_key": "TCCS37"
+    "year_field": 2022,
+    "normalized_code": "TCCS37:2022/TCDBVN",
+    "base_key": "TCCS37",
+    "year": 2022,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ISO 231123-1/AC:2009",
-    "normalized": "ISO231123-1/AC:2009",
-    "base_key": "ISO231123-1"
+    "year_field": null,
+    "normalized_code": "ISO231123-1/AC:2009",
+    "base_key": "ISO231123-1/AC",
+    "year": 2009,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "ISO 9001:2015/AMD1:2016",
-    "normalized": "ISO9001:2015/AMD1:2016",
-    "base_key": "ISO9001"
+    "year_field": 2015,
+    "normalized_code": "ISO9001:2015/AMD1:2016",
+    "base_key": "ISO9001",
+    "year": 2015,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "ISO 9001:2015/Amd 1:2016",
-    "normalized": "ISO9001:2015/AMD1:2016",
-    "base_key": "ISO9001"
+    "year_field": 2015,
+    "normalized_code": "ISO9001:2015/AMD1:2016",
+    "base_key": "ISO9001",
+    "year": 2015,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "ISO 9001:2015/Cor 1:2019",
-    "normalized": "ISO9001:2015/COR1:2019",
-    "base_key": "ISO9001"
+    "year_field": 2015,
+    "normalized_code": "ISO9001:2015/COR1:2019",
+    "base_key": "ISO9001",
+    "year": 2015,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "ISO 9001:2015/COR1:2019",
-    "normalized": "ISO9001:2015/COR1:2019",
-    "base_key": "ISO9001"
+    "year_field": 2015,
+    "normalized_code": "ISO9001:2015/COR1:2019",
+    "base_key": "ISO9001",
+    "year": 2015,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "EN 1994-1-1:2004/Amd 1:2010",
-    "normalized": "EN1994-1-1:2004/AMD1:2010",
-    "base_key": "EN1994-1-1"
+    "year_field": 2004,
+    "normalized_code": "EN1994-1-1:2004/AMD1:2010",
+    "base_key": "EN1994-1-1",
+    "year": 2004,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "EN 1994-1-1:2004+A1:2010",
-    "normalized": "EN1994-1-1:2004+A1:2010",
-    "base_key": "EN1994-1-1"
+    "year_field": 2004,
+    "normalized_code": "EN1994-1-1:2004+A1:2010",
+    "base_key": "EN1994-1-1:2004+A1",
+    "year": 2010,
+    "is_amendment": true,
+    "needs_review": true
   },
   {
     "input": "IEC 60850/2007-02",
-    "normalized": "IEC60850:2007-02",
-    "base_key": "IEC60850"
+    "year_field": 2007,
+    "normalized_code": "IEC60850/2007-02:2007",
+    "base_key": "IEC60850/2007-02",
+    "year": 2007,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 50122-1-2011",
-    "normalized": "EN50122-1:2011",
-    "base_key": "EN50122-1"
+    "year_field": 2011,
+    "normalized_code": "EN50122-1-2011:2011",
+    "base_key": "EN50122-1-2011",
+    "year": 2011,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "GB 50157-2003",
-    "normalized": "GB50157:2003",
-    "base_key": "GB50157"
+    "year_field": 2003,
+    "normalized_code": "GB50157-2003:2003",
+    "base_key": "GB50157-2003",
+    "year": 2003,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 1337-1/2011",
-    "normalized": "EN1337-1:2011",
-    "base_key": "EN1337-1"
+    "year_field": 2011,
+    "normalized_code": "EN1337-1/2011:2011",
+    "base_key": "EN1337-1/2011",
+    "year": 2011,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 50172/2004",
-    "normalized": "EN50172:2004",
-    "base_key": "EN50172"
+    "year_field": 2004,
+    "normalized_code": "EN50172/2004:2004",
+    "base_key": "EN50172/2004",
+    "year": 2004,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 1234-1 2013",
-    "normalized": "TCVN1234-1:2013",
-    "base_key": "TCVN1234-1"
+    "year_field": 2013,
+    "normalized_code": "TCVN1234-12013:2013",
+    "base_key": "TCVN1234-12013",
+    "year": 2013,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13695 (BS EN 13146-1 đến 10:2019)",
-    "normalized": "TCVN13695",
-    "base_key": "TCVN13695"
+    "year_field": null,
+    "normalized_code": "TCVN13695(BSEN13146-1DEN10:2019)",
+    "base_key": "TCVN13695(BSEN13146-1DEN10:2019)",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13695-1:2023 (BS EN 13146-1:2019)",
-    "normalized": "TCVN13695-1:2023",
-    "base_key": "TCVN13695-1"
+    "year_field": 2023,
+    "normalized_code": "TCVN13695-1:2023(BSEN13146-1:2019):2023",
+    "base_key": "TCVN13695-1:2023(BSEN13146-1:2019)",
+    "year": 2023,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 9386-1:2012 (ISO 3010:2001)",
-    "normalized": "TCVN9386-1:2012",
-    "base_key": "TCVN9386-1"
+    "year_field": 2012,
+    "normalized_code": "TCVN9386-1:2012(ISO3010:2001):2012",
+    "base_key": "TCVN9386-1:2012(ISO3010:2001)",
+    "year": 2012,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13695-1:2023 (BS EN 13146-1:2019",
-    "normalized": "TCVN13695-1:2023",
-    "base_key": "TCVN13695-1"
+    "year_field": 2023,
+    "normalized_code": "TCVN13695-1:2023(BSEN13146-1:2019",
+    "base_key": "TCVN13695-1:2023(BSEN13146-1",
+    "year": 2019,
+    "is_amendment": false,
+    "needs_review": true
   },
   {
     "input": "JIS E 1102",
-    "normalized": "JISE1102",
-    "base_key": "JISE1102"
+    "year_field": null,
+    "normalized_code": "JISE1102",
+    "base_key": "JISE1102",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ASTM D 4719-07",
-    "normalized": "ASTMD4719:2007",
-    "base_key": "ASTMD4719"
+    "year_field": 2007,
+    "normalized_code": "ASTMD4719-07:2007",
+    "base_key": "ASTMD4719-07",
+    "year": 2007,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "AASHTO T27-99",
-    "normalized": "AASHTOT27:1999",
-    "base_key": "AASHTOT27"
+    "year_field": 1999,
+    "normalized_code": "AASHTOT27-99:1999",
+    "base_key": "AASHTOT27-99",
+    "year": 1999,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "GBJ 22-87",
-    "normalized": "GBJ22:1987",
-    "base_key": "GBJ22"
+    "year_field": 1987,
+    "normalized_code": "GBJ22-87:1987",
+    "base_key": "GBJ22-87",
+    "year": 1987,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "JIS B8009-12",
-    "normalized": "JISB8009-12",
-    "base_key": "JISB8009-12"
+    "year_field": null,
+    "normalized_code": "JISB8009-12",
+    "base_key": "JISB8009-12",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "IEEE 802.11",
-    "normalized": "IEEE802.11",
-    "base_key": "IEEE802.11"
+    "year_field": null,
+    "normalized_code": "IEEE802.11",
+    "base_key": "IEEE802.11",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ASME B1.20.7",
-    "normalized": "ASMEB1.20.7",
-    "base_key": "ASMEB1.20.7"
+    "year_field": null,
+    "normalized_code": "ASMEB1.20.7",
+    "base_key": "ASMEB1.20.7",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "IEC62278:2002",
-    "normalized": "IEC62278:2002",
-    "base_key": "IEC62278"
+    "year_field": 2002,
+    "normalized_code": "IEC62278:2002",
+    "base_key": "IEC62278",
+    "year": 2002,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "JISC1731-2",
-    "normalized": "JISC1731-2",
-    "base_key": "JISC1731-2"
+    "year_field": null,
+    "normalized_code": "JISC1731-2",
+    "base_key": "JISC1731-2",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ASTM C172-04",
-    "normalized": "ASTMC172:2004",
-    "base_key": "ASTMC172"
+    "year_field": 2004,
+    "normalized_code": "ASTMC172-04:2004",
+    "base_key": "ASTMC172-04",
+    "year": 2004,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 301489-18",
-    "normalized": "EN301489-18",
-    "base_key": "EN301489-18"
+    "year_field": null,
+    "normalized_code": "EN301489-18",
+    "base_key": "EN301489-18",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "Ulc 779-9",
-    "normalized": "ULC779-9",
-    "base_key": "ULC779-9"
+    "year_field": null,
+    "normalized_code": "ULC779-9",
+    "base_key": "ULC779-9",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 4756",
-    "normalized": "TCVN4756",
-    "base_key": "TCVN4756"
+    "year_field": null,
+    "normalized_code": "TCVN4756",
+    "base_key": "TCVN4756",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN 50129",
-    "normalized": "EN50129",
-    "base_key": "EN50129"
+    "year_field": null,
+    "normalized_code": "EN50129",
+    "base_key": "EN50129",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "IEC 60529",
-    "normalized": "IEC60529",
-    "base_key": "IEC60529"
+    "year_field": null,
+    "normalized_code": "IEC60529",
+    "base_key": "IEC60529",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ISO 231123-1:1231",
-    "normalized": "ISO231123-1",
-    "base_key": "ISO231123-1"
+    "year_field": null,
+    "normalized_code": "ISO231123-1:1231",
+    "base_key": "ISO231123-1",
+    "year": 1231,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ISO 231123-1/1231",
-    "normalized": "ISO231123-1",
-    "base_key": "ISO231123-1"
+    "year_field": null,
+    "normalized_code": "ISO231123-1/1231",
+    "base_key": "ISO231123-1/1231",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ISO 231123-1:1231/AC:2009",
-    "normalized": "ISO231123-1/AC:2009",
-    "base_key": "ISO231123-1"
+    "year_field": null,
+    "normalized_code": "ISO231123-1:1231/AC:2009",
+    "base_key": "ISO231123-1",
+    "year": 1231,
+    "is_amendment": true,
+    "needs_review": false
   },
   {
     "input": "TCVN 1234 1231",
-    "normalized": "TCVN1234",
-    "base_key": "TCVN1234"
+    "year_field": null,
+    "normalized_code": "TCVN12341231",
+    "base_key": "TCVN12341231",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 1234 12",
-    "normalized": "TCVN1234/12",
-    "base_key": "TCVN1234"
+    "year_field": null,
+    "normalized_code": "TCVN123412",
+    "base_key": "TCVN123412",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 9143:1800",
-    "normalized": "TCVN9143",
-    "base_key": "TCVN9143"
+    "year_field": null,
+    "normalized_code": "TCVN9143:1800",
+    "base_key": "TCVN9143",
+    "year": 1800,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "XYZ 999:1800",
-    "normalized": "XYZ999",
-    "base_key": "XYZ999"
+    "year_field": null,
+    "normalized_code": "XYZ999:1800",
+    "base_key": "XYZ999",
+    "year": 1800,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 1234:2020 (rev 1)",
-    "normalized": "TCVN1234:2020",
-    "base_key": "TCVN1234"
+    "year_field": 2020,
+    "normalized_code": "TCVN1234:2020(REV1):2020",
+    "base_key": "TCVN1234:2020(REV1)",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566 (2019)",
-    "normalized": "TCVN13566:2019",
-    "base_key": "TCVN13566"
+    "year_field": 2019,
+    "normalized_code": "TCVN13566(2019):2019",
+    "base_key": "TCVN13566(2019)",
+    "year": 2019,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 13566:2020 (2019)",
-    "normalized": "TCVN13566:2020",
-    "base_key": "TCVN13566"
+    "year_field": 2020,
+    "normalized_code": "TCVN13566:2020(2019):2020",
+    "base_key": "TCVN13566:2020(2019)",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN  9366-1: 2012",
-    "normalized": "TCVN9366-1:2012",
-    "base_key": "TCVN9366-1"
+    "year_field": 2012,
+    "normalized_code": "TCVN9366-1:2012",
+    "base_key": "TCVN9366-1",
+    "year": 2012,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "TCVN 7161-\n13:2024",
-    "normalized": "TCVN7161-13:2024",
-    "base_key": "TCVN7161-13"
+    "year_field": 2024,
+    "normalized_code": "TCVN7161-13:2024",
+    "base_key": "TCVN7161-13",
+    "year": 2024,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "ENEN 1234:2020",
-    "normalized": "EN1234:2020",
-    "base_key": "EN1234"
+    "year_field": 2020,
+    "normalized_code": "ENEN1234:2020",
+    "base_key": "ENEN1234",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "EN EN 1234:2020",
-    "normalized": "EN1234:2020",
-    "base_key": "EN1234"
+    "year_field": 2020,
+    "normalized_code": "ENEN1234:2020",
+    "base_key": "ENEN1234",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
   },
   {
     "input": "IEEE Std 802.11:2020",
-    "normalized": "IEEE802.11:2020",
-    "base_key": "IEEE802.11"
+    "year_field": 2020,
+    "normalized_code": "IEEESTD802.11:2020",
+    "base_key": "IEEESTD802.11",
+    "year": 2020,
+    "is_amendment": false,
+    "needs_review": false
+  },
+  {
+    "input": "",
+    "year_field": null,
+    "normalized_code": null,
+    "base_key": null,
+    "year": null,
+    "is_amendment": null,
+    "needs_review": null
+  },
+  {
+    "input": "abc",
+    "year_field": null,
+    "normalized_code": null,
+    "base_key": null,
+    "year": null,
+    "is_amendment": null,
+    "needs_review": null
+  },
+  {
+    "input": "12345",
+    "year_field": null,
+    "normalized_code": "12345",
+    "base_key": "12345",
+    "year": null,
+    "is_amendment": false,
+    "needs_review": false
+  },
+  {
+    "input": "TCVN",
+    "year_field": null,
+    "normalized_code": null,
+    "base_key": null,
+    "year": null,
+    "is_amendment": null,
+    "needs_review": null
+  },
+  {
+    "input": "???",
+    "year_field": null,
+    "normalized_code": null,
+    "base_key": null,
+    "year": null,
+    "is_amendment": null,
+    "needs_review": null
+  },
+  {
+    "input": "INVALID STRING",
+    "year_field": null,
+    "normalized_code": null,
+    "base_key": null,
+    "year": null,
+    "is_amendment": null,
+    "needs_review": null
+  },
+  {
+    "input": "XYZ Q",
+    "year_field": null,
+    "normalized_code": null,
+    "base_key": null,
+    "year": null,
+    "is_amendment": null,
+    "needs_review": null
   }
 ]

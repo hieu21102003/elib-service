@@ -72,6 +72,8 @@ function makeRow(overrides: Partial<StandardRow> = {}): StandardRow {
     ics: ['93.160'],
     detail_level: 'full',
     parse_confidence: '0.9',
+    is_amendment: false,
+    needs_review: false,
     last_verified_at: new Date('2026-11-01T00:00:00Z'),
     created_at: new Date('2026-11-01T00:00:00Z'),
     updated_at: new Date('2026-11-01T00:00:00Z'),
@@ -97,7 +99,9 @@ describe('mergeStandardFields — quy tắc gộp 4.3', () => {
     effective_date: null,
     ics: null,
     detail_level: 'summary' as const,
-    parse_confidence: 0.8
+    parse_confidence: 0.8,
+    is_amendment: false,
+    needs_review: false
   };
 
   it('summary không ghi đè trường đã có từ full, chỉ lấp chỗ trống', () => {
@@ -158,23 +162,47 @@ describe('relationEdgesFromDetail — một chiều, replacedBy đảo thành re
       replacedBy: 'TCVN 9143:2022'
     });
     expect(edges).toEqual([
-      { fromCodeRaw: 'TCVN 9143:2022', type: 'replaces', toCodeRaw: 'SELF' }
+      {
+        fromCodeRaw: 'TCVN 9143:2022',
+        fromYear: null,
+        type: 'replaces',
+        toCodeRaw: 'SELF',
+        toYear: null,
+        toRawOnly: false
+      }
     ]);
   });
 
-  it('replaces chuỗi * của TCVN_QT tách thành từng cạnh', () => {
+  it('replaces chuỗi * của TCVN_QT tách thành từng cạnh, năm từ "(YYYY-MM)", corrigendum rawOnly', () => {
     const edges = relationEdgesFromDetail({
       code: 'ISO 9001',
       replaces:
         'ISO 9001 (2008-11)*ISO/FDIS 9001 (2015-07)*ISO 9001 Technical Corrigendum 1 (2009-07)'
     });
     expect(edges).toEqual([
-      { fromCodeRaw: 'SELF', type: 'replaces', toCodeRaw: 'ISO 9001' },
-      { fromCodeRaw: 'SELF', type: 'replaces', toCodeRaw: 'ISO/FDIS 9001' },
       {
         fromCodeRaw: 'SELF',
+        fromYear: null,
         type: 'replaces',
-        toCodeRaw: 'ISO 9001 Technical Corrigendum 1'
+        toCodeRaw: 'ISO 9001',
+        toYear: 2008,
+        toRawOnly: false
+      },
+      {
+        fromCodeRaw: 'SELF',
+        fromYear: null,
+        type: 'replaces',
+        toCodeRaw: 'ISO/FDIS 9001',
+        toYear: 2015,
+        toRawOnly: false
+      },
+      {
+        fromCodeRaw: 'SELF',
+        fromYear: null,
+        type: 'replaces',
+        toCodeRaw: 'ISO 9001 Technical Corrigendum 1 (2009-07)',
+        toYear: 2009,
+        toRawOnly: true
       }
     ]);
   });
@@ -189,8 +217,22 @@ describe('relationEdgesFromDetail — một chiều, replacedBy đảo thành re
       ]
     });
     expect(edges).toEqual([
-      { fromCodeRaw: 'SELF', type: 'replaces', toCodeRaw: 'TCVN 9143:2012' },
-      { fromCodeRaw: 'SELF', type: 'equivalent', toCodeRaw: 'ISO 3010:2001' }
+      {
+        fromCodeRaw: 'SELF',
+        fromYear: null,
+        type: 'replaces',
+        toCodeRaw: 'TCVN 9143:2012',
+        toYear: null,
+        toRawOnly: false
+      },
+      {
+        fromCodeRaw: 'SELF',
+        fromYear: null,
+        type: 'equivalent',
+        toCodeRaw: 'ISO 3010:2001',
+        toYear: null,
+        toRawOnly: false
+      }
     ]);
   });
 });
@@ -288,6 +330,185 @@ describe('/internal/standards — guard token (không cần PostgreSQL thật)',
   });
 });
 
+/** Pool giả ghi lại mọi query — kiểm tra luồng ingest không cần PostgreSQL. */
+class FakeDb {
+  standards = new Map<string, Record<string, unknown>>();
+  relations: unknown[][] = [];
+  private seq = 0;
+
+  private makeRow(p: unknown[], stub: boolean): Record<string, unknown> {
+    this.seq += 1;
+    const now = new Date('2026-11-23T00:00:00Z');
+    if (stub) {
+      return {
+        id: `id-${this.seq}`,
+        org: p[0], number: p[1], part: p[2], year: p[3], amendment: p[4],
+        suffix: p[5], normalized_code: p[6], base_key: p[7], code_display: p[8],
+        title_vi: null, title_en: null, status: 'Unknown', issued_date: null,
+        effective_date: null, ics: null, detail_level: 'stub',
+        parse_confidence: String(p[9]), is_amendment: p[10], needs_review: p[11],
+        last_verified_at: null, created_at: now, updated_at: now
+      };
+    }
+    return {
+      id: `id-${this.seq}`,
+      org: p[0], number: p[1], part: p[2], year: p[3], amendment: p[4],
+      suffix: p[5], normalized_code: p[6], base_key: p[7], code_display: p[8],
+      title_vi: p[9], title_en: p[10], status: p[11], issued_date: p[12],
+      effective_date: p[13], ics: p[14], detail_level: p[15],
+      parse_confidence: String(p[16]), is_amendment: p[17], needs_review: p[18],
+      last_verified_at: p[19], created_at: now, updated_at: now
+    };
+  }
+
+  async query(sql: string, params: unknown[] = []): Promise<{ rows: Record<string, unknown>[] }> {
+    const s = sql.replace(/\s+/g, ' ').trim();
+    if (s === 'BEGIN' || s === 'COMMIT' || s === 'ROLLBACK') return { rows: [] };
+    if (s.startsWith('SELECT * FROM standards WHERE normalized_code')) {
+      const row = this.standards.get(String(params[0]));
+      return { rows: row ? [row] : [] };
+    }
+    if (s.startsWith('SELECT id FROM standards WHERE normalized_code')) {
+      const row = this.standards.get(String(params[0]));
+      return { rows: row ? [{ id: row.id }] : [] };
+    }
+    if (s.startsWith('SELECT normalized_code, base_key FROM standards WHERE id')) {
+      const row = [...this.standards.values()].find((r) => r.id === params[0]);
+      return {
+        rows: row ? [{ normalized_code: row.normalized_code, base_key: row.base_key }] : []
+      };
+    }
+    if (s.startsWith('SELECT source FROM standard_sources')) return { rows: [] };
+    if (s.startsWith('INSERT INTO standards')) {
+      const stub = s.includes("'stub'");
+      const existing = this.standards.get(String(params[6]));
+      if (existing) return { rows: stub ? [{ id: existing.id }] : [existing] };
+      const row = this.makeRow(params, stub);
+      this.standards.set(String(row.normalized_code), row);
+      return { rows: stub ? [{ id: row.id }] : [row] };
+    }
+    if (s.startsWith('UPDATE standards SET last_verified_at')) {
+      const row = [...this.standards.values()].find((r) => r.id === params[0]);
+      return { rows: row ? [row] : [] };
+    }
+    if (s.startsWith('UPDATE standards SET')) {
+      const row = [...this.standards.values()].find((r) => r.id === params[0]);
+      if (!row) return { rows: [] };
+      const keys = [
+        'org', 'number', 'part', 'year', 'amendment', 'suffix', 'code_display',
+        'title_vi', 'title_en', 'status', 'issued_date', 'effective_date', 'ics',
+        'detail_level', 'parse_confidence', 'is_amendment', 'needs_review'
+      ];
+      keys.forEach((k, i) => {
+        row[k] = k === 'parse_confidence' ? String(params[i + 1]) : params[i + 1];
+      });
+      return { rows: [row] };
+    }
+    if (s.startsWith('INSERT INTO standard_sources')) return { rows: [] };
+    if (s.startsWith('INSERT INTO standard_relations')) {
+      this.relations.push(params);
+      return { rows: [] };
+    }
+    throw new Error(`FakeDb: SQL không hỗ trợ: ${s.slice(0, 80)}`);
+  }
+
+  async connect() {
+    return { query: this.query.bind(this), release: () => undefined };
+  }
+
+  asPool(): pg.Pool {
+    return this as unknown as pg.Pool;
+  }
+}
+
+describe('ingest với khóa chuẩn hóa nhẹ (FakeDb, không cần PostgreSQL)', () => {
+  it('mã rác bị bỏ qua + log, không hỏng lô; mã tốt vẫn lưu', async () => {
+    const db = new FakeDb();
+    const logs: string[] = [];
+    const bad = await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: '???' },
+      'TCVN_VN',
+      (m) => logs.push(m)
+    );
+    expect(bad).toEqual([]);
+    expect(logs.length).toBe(1);
+    expect(db.standards.size).toBe(0);
+
+    const good = await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'ISO 9001', year: 2015, name: 'Quality management systems' },
+      'TCVN_QT'
+    );
+    expect(good.length).toBe(1);
+    // QT code không năm + year field -> khóa có năm, gộp được với nguồn viết kèm năm
+    expect(db.standards.has('ISO9001:2015')).toBe(true);
+  });
+
+  it('đích quan hệ không năm (TCVN 4253): không tạo stub, lưu to_norm + to_base_key, to_id NULL', async () => {
+    const db = new FakeDb();
+    await upsertStandardFromDetail(
+      db.asPool(),
+      {
+        code: 'TCVN 9143:2022',
+        year: 2022,
+        status: 'Active',
+        relations: [{ type: 'normativeReference', code: 'TCVN 4253' }]
+      },
+      'VSQI'
+    );
+    expect(db.standards.has('TCVN4253')).toBe(false); // không stub khóa giả
+    expect(db.relations.length).toBe(1);
+    const [, type, toId, toRaw, toNorm, toBaseKey] = db.relations[0];
+    expect(type).toBe('normativeReference');
+    expect(toId).toBeNull();
+    expect(toRaw).toBe('TCVN 4253');
+    expect(toNorm).toBe('TCVN4253');
+    expect(toBaseKey).toBe('TCVN4253');
+  });
+
+  it('replaces QT: ISO9001:2008 + ISOFDIS9001:2015 có stub, corrigendum raw to_id NULL', async () => {
+    const db = new FakeDb();
+    await upsertStandardFromDetail(
+      db.asPool(),
+      {
+        code: 'ISO 9001',
+        year: 2015,
+        status: 'Active',
+        replaces:
+          'ISO 9001 (2008-11)*ISO/FDIS 9001 (2015-07)*ISO 9001 Technical Corrigendum 1 (2009-07)'
+      },
+      'TCVN_QT'
+    );
+    expect(db.standards.has('ISO9001:2015')).toBe(true);
+    expect(db.standards.has('ISO9001:2008')).toBe(true); // stub cho đích có năm
+    expect(db.standards.has('ISOFDIS9001:2015')).toBe(true); // designation riêng
+    const byNorm = new Map(db.relations.map((r) => [String(r[4]), r]));
+    expect(byNorm.get('ISO9001:2008')?.[2]).not.toBeNull();
+    expect(byNorm.get('ISOFDIS9001:2015')?.[2]).not.toBeNull();
+    const corr = db.relations.find((r) => String(r[3]).includes('Technical Corrigendum'));
+    expect(corr).toBeDefined();
+    expect(corr?.[2]).toBeNull(); // to_id NULL — không parse văn xuôi
+  });
+
+  it('bản không năm không bị ghi đè khi sau này có bản có năm', async () => {
+    const db = new FakeDb();
+    await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'TCVN 4253', name: 'Bản không năm' },
+      'VSQI'
+    );
+    await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'TCVN 4253:2020', year: 2020, name: 'Bản 2020' },
+      'TCVN_VN'
+    );
+    expect(db.standards.size).toBe(2);
+    expect(db.standards.get('TCVN4253')?.title_vi).toBe('Bản không năm');
+    expect(db.standards.get('TCVN4253:2020')?.title_vi).toBe('Bản 2020');
+  });
+});
+
 describe.skipIf(!hasDb)('standards repository (cần PostgreSQL thật)', () => {
   const pool = hasDb ? createPool(process.env.DATABASE_URL as string) : (null as never);
 
@@ -378,6 +599,57 @@ describe.skipIf(!hasDb)('standards repository (cần PostgreSQL thật)', () => 
 
     await pool.query(
       "DELETE FROM standards WHERE normalized_code IN ('TCVN9143:2022','TCVN9143:2012')"
+    );
+  });
+
+  it('lookup không năm: mọi ấn bản, mới nhất đầu, amendment/FDIS xếp dưới bản chính; đích không năm không stub', async () => {
+    await upsertStandardFromDetail(
+      pool,
+      {
+        code: 'ISO 9001',
+        year: 2015,
+        name: 'Quality management systems',
+        status: 'Active',
+        replaces:
+          'ISO 9001 (2008-11)*ISO/FDIS 9001 (2015-07)*ISO 9001 Technical Corrigendum 1 (2009-07)',
+        relations: [{ type: 'normativeReference', code: 'TCVN 4253' }]
+      },
+      'TCVN_QT'
+    );
+    await upsertStandardFromSearchItem(
+      pool,
+      { code: 'ISO 9001:2015/Amd 1:2016', year: 2015, status: 'Active' },
+      'TCVN_QT'
+    );
+
+    // Đích không năm: không có stub TCVN4253, cạnh lưu to_base_key
+    const stub4253 = await pool.query(
+      "SELECT 1 FROM standards WHERE normalized_code = 'TCVN4253'"
+    );
+    expect(stub4253.rows.length).toBe(0);
+    const rel4253 = await pool.query<{ to_id: string | null; to_base_key: string }>(
+      "SELECT to_id, to_base_key FROM standard_relations WHERE to_norm = 'TCVN4253'"
+    );
+    expect(rel4253.rows[0].to_id).toBeNull();
+    expect(rel4253.rows[0].to_base_key).toBe('TCVN4253');
+
+    // Tìm không năm -> base_key ISO9001: bản chính 2015 đầu, rồi 2008,
+    // amendment xếp dưới bản chính cùng base_key
+    const found = await lookupByCode(pool, 'iso 9001');
+    expect(found?.standard.normalized_code).toBe('ISO9001:2015');
+    const codes = found?.editions.map((e) => e.normalized_code) ?? [];
+    expect(codes[0]).toBe('ISO9001:2015');
+    expect(codes).toContain('ISO9001:2008');
+    expect(codes).toContain('ISO9001:2015/AMD1:2016');
+    expect(codes.indexOf('ISO9001:2015/AMD1:2016')).toBeGreaterThan(
+      codes.indexOf('ISO9001:2015')
+    );
+    // FDIS là designation riêng (base_key khác) — tra riêng ra đúng bản FDIS
+    const fdis = await lookupByCode(pool, 'ISO/FDIS 9001:2015');
+    expect(fdis?.standard.normalized_code).toBe('ISOFDIS9001:2015');
+
+    await pool.query(
+      "DELETE FROM standards WHERE normalized_code IN ('ISO9001:2015','ISO9001:2008','ISOFDIS9001:2015','ISO9001:2015/AMD1:2016')"
     );
   });
 });

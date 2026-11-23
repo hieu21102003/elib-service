@@ -1,20 +1,21 @@
-// Generate code-normalize-shared.json — the shared normalization fixture
-// (input -> normalized_code / base_key) tested in BOTH elib and
-// Reverse_proxy. Inputs are taken from code-parser-golden.json (generated
-// from the Python original); the keys are computed by the TypeScript
-// parser (buildNormalizedCode / buildBaseKey), because elib is the source
-// of truth for normalized_code (plan 4.1, user decision 2026-11-23:
-// built from org_prefix, each designation a separate record).
+// Generate code-normalize-shared.json — the shared LIGHT-normalization
+// fixture (input + year_field -> normalized_code / base_key / year /
+// is_amendment / needs_review) tested in BOTH elib and Reverse_proxy.
+//
+// Inputs come from code-parser-golden.json (generated from the Python
+// original); year_field simulates the upstream `year` field and is
+// taken from the golden `std_year`. Outputs are computed by
+// lightNormalizeCode (src/standards/light-normalize.ts) — elib is the
+// source of truth for normalized_code (user decision 2026-11-23:
+// light normalization on the upstream code, full parser best-effort
+// only). Un-normalizable inputs are kept with null outputs so both
+// repos test the null path too.
 //
 // Usage: npx tsx tests/fixtures/generate-shared.ts
 // Do NOT hand-edit the generated JSON; regenerate instead.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import {
-  parseStandardCode,
-  buildNormalizedCode,
-  buildBaseKey
-} from '../../src/standards/code-parser.js';
+import { lightNormalizeCode } from '../../src/standards/light-normalize.js';
 
 interface GoldenCase {
   input: string;
@@ -26,15 +27,20 @@ const golden = JSON.parse(
   readFileSync(new URL('./code-parser-golden.json', here), 'utf8')
 ) as GoldenCase[];
 
-const shared: Array<{ input: string; normalized: string; base_key: string }> = [];
-for (const { input } of golden) {
-  const parsed = parseStandardCode(input);
-  const normalized = buildNormalizedCode(parsed);
-  const baseKey = buildBaseKey(parsed);
-  if (normalized !== null && baseKey !== null) {
-    shared.push({ input, normalized, base_key: baseKey });
-  }
-}
+const shared = golden.map(({ input, expected }) => {
+  const yearField =
+    typeof expected['std_year'] === 'number' ? (expected['std_year'] as number) : null;
+  const light = lightNormalizeCode(input, yearField);
+  return {
+    input,
+    year_field: yearField,
+    normalized_code: light?.normalized_code ?? null,
+    base_key: light?.base_key ?? null,
+    year: light?.year ?? null,
+    is_amendment: light?.is_amendment ?? null,
+    needs_review: light?.needs_review ?? null
+  };
+});
 
 writeFileSync(
   new URL('./code-normalize-shared.json', here),

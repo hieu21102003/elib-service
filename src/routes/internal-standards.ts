@@ -14,7 +14,8 @@ import { z } from 'zod';
 import type pg from 'pg';
 import type { AppConfig } from '../config.js';
 import { AppError } from '../errors.js';
-import { parseStandardCode, buildNormalizedCode } from '../standards/code-parser.js';
+import { parseStandardCode } from '../standards/code-parser.js';
+import { lightNormalizeCode } from '../standards/light-normalize.js';
 import {
   upsertStandardFromSearchItem,
   upsertStandardFromDetail,
@@ -116,28 +117,31 @@ export function registerInternalStandardsRoutes(
     async (request) => {
       const body = ingestSchema.parse(request.body);
       const source = body.source as StandardSource;
+      const log = (message: string) => request.log.warn(message);
       if (body.kind === 'search') {
         const items = (body.items ?? []) as IngestSearchItem[];
         let stored = 0;
         for (const item of items) {
-          const ids = await upsertStandardFromSearchItem(pool, item, source);
+          const ids = await upsertStandardFromSearchItem(pool, item, source, log);
           stored += ids.length;
         }
         // search_log is written ONLY here (ingest), with had_result from
         // the caller (Reverse_proxy knows the final merged result).
         const query = body.query ?? '';
-        const parsedQuery = parseStandardCode(query);
         await logSearch(pool, {
           queryNorm:
-            buildNormalizedCode(parsedQuery) ?? query.trim().replace(/\s+/g, ' ').toUpperCase(),
-          orgGuess: parsedQuery.org_normalized,
+            lightNormalizeCode(query)?.normalized_code ??
+            query.trim().replace(/\s+/g, ' ').toUpperCase(),
+          // org_guess is best-effort only — the full parser never
+          // decides keys, it just hints the organization for the log.
+          orgGuess: parseStandardCode(query).org_normalized,
           hadResult: body.hadResult ?? items.length > 0
         });
-        return { ok: true, stored };
+        return { ok: true, stored, skipped: items.length - stored };
       }
       const detail = body.detail as IngestDetail;
-      const ids = await upsertStandardFromDetail(pool, detail, source);
-      return { ok: true, stored: ids.length };
+      const ids = await upsertStandardFromDetail(pool, detail, source, log);
+      return { ok: true, stored: ids.length, skipped: ids.length === 0 ? 1 : 0 };
     }
   );
 
@@ -169,9 +173,25 @@ export function registerInternalStandardsRoutes(
         ics: s.ics,
         detailLevel: s.detail_level,
         parseConfidence: s.parse_confidence !== null ? Number(s.parse_confidence) : null,
+        isAmendment: s.is_amendment,
+        needsReview: s.needs_review,
         lastVerifiedAt: s.last_verified_at?.toISOString() ?? null,
         updatedAt: s.updated_at.toISOString()
       },
+      // All matching editions, newest first (amendment/FDIS below the
+      // official edition) — `standard` above is editions[0].
+      editions: result.editions.map((row) => ({
+        id: row.id,
+        normalizedCode: row.normalized_code,
+        baseKey: row.base_key,
+        codeDisplay: row.code_display,
+        year: row.year,
+        status: row.status,
+        isAmendment: row.is_amendment,
+        needsReview: row.needs_review,
+        detailLevel: row.detail_level,
+        lastVerifiedAt: row.last_verified_at?.toISOString() ?? null
+      })),
       sources: result.sources.map((row) => ({
         source: row.source,
         detailUrl: row.detail_url,
@@ -182,6 +202,7 @@ export function registerInternalStandardsRoutes(
         type: row.type,
         toCodeRaw: row.to_code_raw,
         toNorm: row.to_norm,
+        toBaseKey: row.to_base_key,
         toId: row.to_id,
         fromId: row.from_id,
         source: row.source

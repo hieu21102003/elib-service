@@ -1,22 +1,30 @@
 -- elib-service — DB metadata tiêu chuẩn (Bước 1, Phase 2).
 -- Bảng standards/standard_sources/standard_relations/search_log nuôi dần từ
--- các lần tra cứu thật (KHÔNG crawl hàng loạt). normalized_code dựng từ
--- org_prefix (mỗi designation một bản ghi, không gộp adoption); cột org lưu
--- org_normalized. Quan hệ thay thế chỉ lưu MỘT chiều (B replaces A), chiều
--- ngược suy ra khi hiển thị. documents.standard_id: tài liệu gắn với tiêu
--- chuẩn không được có giá bán (CHECK std_docs_not_for_sale).
+-- các lần tra cứu thật (KHÔNG crawl hàng loạt).
+--
+-- Khóa gộp (quyết định 2026-11-23 "Đổi hướng khóa gộp"): normalized_code =
+-- chuẩn hóa NHẸ trên `code` upstream (src/standards/light-normalize.ts),
+-- KHÔNG qua parser đầy đủ. Parser chỉ điền cột tùy chọn org/number/part/
+-- amendment theo best-effort (NULL khi parse lỗi/confidence thấp).
+-- Migration này CHƯA được áp dụng ở bất kỳ DB nào (PR-A chưa merge) nên
+-- được sửa tại chỗ thay vì tạo 004.
+--
+-- Quan hệ thay thế chỉ lưu MỘT chiều (B replaces A), chiều ngược suy ra khi
+-- hiển thị. Mã đích không năm: không tạo stub, lưu to_norm + to_base_key.
+-- documents.standard_id: tài liệu gắn với tiêu chuẩn không được có giá bán
+-- (CHECK std_docs_not_for_sale).
 -- f_unaccent() và extension unaccent/pg_trgm đã có từ 002_search.sql.
 
 CREATE TABLE IF NOT EXISTS standards (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org text NOT NULL,                            -- org_normalized của parser
-  number text NOT NULL,                         -- std_main_number
+  org text,                                     -- org_normalized (best-effort từ parser)
+  number text,                                  -- std_main_number (best-effort từ parser)
   part text,                                    -- chuỗi phần ("1", "1-10"...)
-  year smallint,
+  year smallint,                                -- từ code ":YYYY" hoặc trường year upstream
   amendment text,
   suffix text,
-  normalized_code text NOT NULL UNIQUE,         -- từ org_prefix, vd TCVN9386-1:2012
-  base_key text NOT NULL,                       -- normalized_code bỏ năm + suffix
+  normalized_code text NOT NULL UNIQUE,         -- chuẩn hóa nhẹ, vd TCVN9386-1:2012
+  base_key text NOT NULL,                       -- normalized_code bỏ đoạn ":năm"
   code_display text NOT NULL,                   -- mã như nguồn hiển thị
   title_vi text,
   title_en text,
@@ -27,7 +35,9 @@ CREATE TABLE IF NOT EXISTS standards (
   ics text[],
   detail_level text NOT NULL DEFAULT 'summary'
     CHECK (detail_level IN ('stub', 'summary', 'full', 'manual')),
-  parse_confidence numeric,                     -- confidence_score của parser
+  parse_confidence numeric,                     -- confidence_score của parser (best-effort)
+  is_amendment boolean NOT NULL DEFAULT false,  -- regex /AMD /COR /AC +A\d trên khóa
+  needs_review boolean NOT NULL DEFAULT false,  -- năm code lệch trường year, hoặc amendment thiếu ":năm"
   last_verified_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -54,14 +64,17 @@ CREATE TABLE IF NOT EXISTS standard_relations (
   id bigserial PRIMARY KEY,
   from_id uuid NOT NULL REFERENCES standards(id) ON DELETE CASCADE,
   type text NOT NULL,                           -- replaces | equivalent | normativeReference | history | ...
-  to_id uuid REFERENCES standards(id) ON DELETE SET NULL,  -- null nếu chưa resolve
+  to_id uuid REFERENCES standards(id) ON DELETE SET NULL,  -- null nếu chưa resolve / đích không năm chưa có bản ghi
   to_code_raw text NOT NULL,
-  to_norm text NOT NULL,                        -- normalized_code, hoặc UPPER(raw) nếu parse không ra
+  to_norm text NOT NULL,                        -- normalized_code (chuẩn hóa nhẹ), hoặc UPPER(raw) nếu không chuẩn hóa được
+  to_base_key text,                             -- base_key của đích — hiển thị nối theo base_key khi to_id null
   source text,
   UNIQUE (from_id, type, to_norm)
 );
 CREATE INDEX IF NOT EXISTS standard_relations_to_idx
   ON standard_relations (to_id);
+CREATE INDEX IF NOT EXISTS standard_relations_to_base_key_idx
+  ON standard_relations (to_base_key text_pattern_ops);
 
 CREATE TABLE IF NOT EXISTS search_log (
   id bigserial PRIMARY KEY,
