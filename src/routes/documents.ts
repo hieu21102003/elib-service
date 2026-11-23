@@ -102,6 +102,10 @@ function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
   };
 }
 
+const patchVisibilitySchema = z.object({
+  visibility: z.enum(['public', 'internal', 'private'])
+});
+
 function parseTags(raw: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -394,6 +398,65 @@ export function registerDocumentRoutes(
       return reply.send({ data, total, limit: query.limit, offset: query.offset });
     }
   );
+
+  // Đổi mức hiển thị (visibility) của tài liệu — CHỈ admin hoặc người tạo.
+  // Chỉ ghi cột visibility (+ updated_at); ma trận quyền đọc/tải/preview
+  // (visibleDocumentsWhere, canDownload, canPreview) không đổi.
+  app.patch('/api/documents/:id', async (request, reply) => {
+    const user = await getCurrentUser(pool, request.cookies);
+    if (!user) throw unauthorized();
+
+    const { id } = request.params as { id: string };
+    if (!z.string().uuid().safeParse(id).success) throw notFound();
+
+    const parsed = patchVisibilitySchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'INVALID_VISIBILITY',
+        'Mức hiển thị không hợp lệ. Chỉ chấp nhận: public, internal, private.'
+      );
+    }
+    const newVisibility = parsed.data.visibility;
+
+    const found = await pool.query(
+      'SELECT id, title, visibility, status, created_by FROM documents WHERE id = $1',
+      [id]
+    );
+    const doc = found.rows[0] as
+      | { id: string; title: string; visibility: string; status: string; created_by: string | null }
+      | undefined;
+    if (!doc) throw notFound();
+
+    if (user.role !== 'admin' && user.id !== doc.created_by) {
+      throw forbidden('Chỉ quản trị viên hoặc người tạo tài liệu mới đổi được mức hiển thị');
+    }
+
+    const updated = await pool.query(
+      `UPDATE documents SET visibility = $1, updated_at = now() WHERE id = $2
+       RETURNING id, title, visibility, status, updated_at`,
+      [newVisibility, id]
+    );
+    const row = updated.rows[0] as {
+      id: string;
+      title: string;
+      visibility: string;
+      status: string;
+      updated_at: Date;
+    };
+
+    request.log.info(
+      {
+        audit: 'document_visibility_changed',
+        userId: user.id,
+        documentId: row.id,
+        oldVisibility: doc.visibility,
+        newVisibility: row.visibility
+      },
+      'document visibility changed'
+    );
+
+    return reply.send({ document: row });
+  });
 
   app.get('/api/documents/:id/files/:fileId/download', async (request, reply) => {
     const { id, fileId } = request.params as { id: string; fileId: string };
