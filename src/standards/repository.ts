@@ -94,6 +94,8 @@ export interface StandardRow {
   detail_level: DetailLevel;
   parse_confidence: string | null;
   is_amendment: boolean;
+  amendment_year: number | null;
+  is_draft: boolean;
   needs_review: boolean;
   last_verified_at: Date | null;
   created_at: Date;
@@ -119,6 +121,8 @@ interface StandardFields {
   detail_level: DetailLevel;
   parse_confidence: number;
   is_amendment: boolean;
+  amendment_year: number | null;
+  is_draft: boolean;
   needs_review: boolean;
 }
 
@@ -241,7 +245,7 @@ function parserColumns(code: string): {
 }
 
 function fieldsFromItem(
-  light: LightNormalized,
+  light: LightNormalized & { normalized_code: string; base_key: string },
   item: IngestSearchItem,
   source: StandardSource,
   level: DetailLevel,
@@ -273,6 +277,8 @@ function fieldsFromItem(
     detail_level: level,
     parse_confidence: cols.parse_confidence,
     is_amendment: light.is_amendment,
+    amendment_year: light.amendment_year,
+    is_draft: light.is_draft,
     needs_review: light.needs_review
   };
 }
@@ -290,7 +296,8 @@ const nonEmpty = (v: string | null | undefined): string | null =>
  * - status: TCVN beats VSQI — a VSQI status never replaces a status that
  *   came from a TCVN source (existingSources tells us), and 'Unknown' never
  *   replaces a known status;
- * - needs_review is sticky (existing OR incoming);
+ * - needs_review is sticky (existing OR incoming); a needs_review
+ *   payload may only CREATE a record, never update an existing one;
  * - is_amendment is a pure function of normalized_code, so both sides
  *   agree; incoming wins by construction.
  */
@@ -320,6 +327,8 @@ export function mergeStandardFields(
     parse_confidence:
       existing.parse_confidence !== null ? Number(existing.parse_confidence) : 0,
     is_amendment: existing.is_amendment,
+    amendment_year: existing.amendment_year,
+    is_draft: existing.is_draft,
     needs_review: existing.needs_review
   };
   if (existing.detail_level === 'manual') return existingFields;
@@ -361,6 +370,8 @@ export function mergeStandardFields(
         : existing.detail_level,
     parse_confidence: Math.max(existingFields.parse_confidence, incoming.parse_confidence),
     is_amendment: incoming.is_amendment,
+    amendment_year: pick(incoming.amendment_year, existing.amendment_year),
+    is_draft: incoming.is_draft,
     needs_review: existing.needs_review || incoming.needs_review
   };
 }
@@ -371,7 +382,8 @@ async function upsertStandardRow(
   db: Queryable,
   fields: StandardFields,
   source: StandardSource,
-  touchVerified: boolean
+  touchVerified: boolean,
+  log?: IngestLogger
 ): Promise<StandardRow> {
   const existingRes = await db.query<StandardRow>(
     'SELECT * FROM standards WHERE normalized_code = $1 FOR UPDATE',
@@ -383,9 +395,9 @@ async function upsertStandardRow(
       `INSERT INTO standards (
          org, number, part, year, amendment, suffix, normalized_code, base_key,
          code_display, title_vi, title_en, status, issued_date, effective_date,
-         ics, detail_level, parse_confidence, is_amendment, needs_review,
-         last_verified_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+         ics, detail_level, parse_confidence, is_amendment, amendment_year,
+         is_draft, needs_review, last_verified_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
        RETURNING *`,
       [
         fields.org,
@@ -406,6 +418,8 @@ async function upsertStandardRow(
         fields.detail_level,
         fields.parse_confidence,
         fields.is_amendment,
+        fields.amendment_year,
+        fields.is_draft,
         fields.needs_review,
         touchVerified ? new Date() : null
       ]
@@ -425,6 +439,15 @@ async function upsertStandardRow(
     return existing;
   }
 
+  if (fields.needs_review) {
+    // A needs_review payload may only CREATE a record, never update an
+    // existing one — its key/data are suspect until a human reviews.
+    log?.(
+      `standards ingest: needs_review, không cập nhật bản ghi có sẵn ${fields.normalized_code} (${source})`
+    );
+    return existing;
+  }
+
   const sourcesRes = await db.query<{ source: string }>(
     'SELECT source FROM standard_sources WHERE standard_id = $1',
     [existing.id]
@@ -441,8 +464,8 @@ async function upsertStandardRow(
        suffix = $7, code_display = $8, title_vi = $9, title_en = $10,
        status = $11, issued_date = $12, effective_date = $13, ics = $14,
        detail_level = $15, parse_confidence = $16, is_amendment = $17,
-       needs_review = $18,
-       last_verified_at = CASE WHEN $19 THEN now() ELSE last_verified_at END,
+       amendment_year = $18, is_draft = $19, needs_review = $20,
+       last_verified_at = CASE WHEN $21 THEN now() ELSE last_verified_at END,
        updated_at = now()
      WHERE id = $1
      RETURNING *`,
@@ -464,6 +487,8 @@ async function upsertStandardRow(
       merged.detail_level,
       merged.parse_confidence,
       merged.is_amendment,
+      merged.amendment_year,
+      merged.is_draft,
       merged.needs_review,
       touchVerified
     ]
@@ -477,15 +502,16 @@ async function upsertStandardRow(
  */
 async function ensureStub(
   db: Queryable,
-  light: LightNormalized,
+  light: LightNormalized & { normalized_code: string; base_key: string },
   rawCode: string
 ): Promise<string> {
   const cols = parserColumns(rawCode);
   const res = await db.query<{ id: string }>(
     `INSERT INTO standards (
        org, number, part, year, amendment, suffix, normalized_code, base_key,
-       code_display, detail_level, parse_confidence, is_amendment, needs_review
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'stub',$10,$11,$12)
+       code_display, detail_level, parse_confidence, is_amendment,
+       amendment_year, is_draft, needs_review
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'stub',$10,$11,$12,$13,$14)
      ON CONFLICT (normalized_code) DO UPDATE SET normalized_code = EXCLUDED.normalized_code
      RETURNING id`,
     [
@@ -500,6 +526,8 @@ async function ensureStub(
       rawCode.trim(),
       cols.parse_confidence,
       light.is_amendment,
+      light.amendment_year,
+      light.is_draft,
       light.needs_review
     ]
   );
@@ -618,7 +646,7 @@ async function resolveCode(
   yearField: number | null
 ): Promise<ResolvedCode> {
   const light = lightNormalizeCode(codeRaw, yearField);
-  if (light === null) {
+  if (light === null || light.normalized_code === null || light.base_key === null) {
     const upper = codeRaw.trim().toUpperCase();
     return { id: null, norm: upper, baseKey: upper };
   }
@@ -630,7 +658,11 @@ async function resolveCode(
     return { id: existing.rows[0].id, norm: light.normalized_code, baseKey: light.base_key };
   }
   if (light.year !== null) {
-    const id = await ensureStub(db, light, codeRaw);
+    const id = await ensureStub(
+      db,
+      light as LightNormalized & { normalized_code: string; base_key: string },
+      codeRaw
+    );
     return { id, norm: light.normalized_code, baseKey: light.base_key };
   }
   return { id: null, norm: light.normalized_code, baseKey: light.base_key };
@@ -711,12 +743,17 @@ export async function upsertStandardFromSearchItem(
   log?: IngestLogger
 ): Promise<string[]> {
   const light = lightNormalizeCode(item.code, item.year ?? null);
-  if (light === null) {
+  if (light === null || light.normalized_code === null || light.base_key === null) {
     log?.(`standards ingest: bỏ qua mã không chuẩn hóa được ${JSON.stringify(item.code)} (${source})`);
     return [];
   }
-  const fields = fieldsFromItem(light, item, source, 'summary');
-  const row = await upsertStandardRow(pool, fields, source, false);
+  const fields = fieldsFromItem(
+    light as LightNormalized & { normalized_code: string; base_key: string },
+    item,
+    source,
+    'summary'
+  );
+  const row = await upsertStandardRow(pool, fields, source, false, log);
   return [row.id];
 }
 
@@ -733,13 +770,14 @@ export async function upsertStandardFromDetail(
   log?: IngestLogger
 ): Promise<string[]> {
   const light = lightNormalizeCode(detail.code, detail.year ?? null);
-  if (light === null) {
+  if (light === null || light.normalized_code === null || light.base_key === null) {
     log?.(`standards ingest: bỏ qua detail mã không chuẩn hóa được ${JSON.stringify(detail.code)} (${source})`);
     return [];
   }
+  const keyedLight = light as LightNormalized & { normalized_code: string; base_key: string };
   return withTransaction(pool, async (client) => {
-    const fields = fieldsFromItem(light, detail, source, 'full', detail);
-    const row = await upsertStandardRow(client, fields, source, true);
+    const fields = fieldsFromItem(keyedLight, detail, source, 'full', detail);
+    const row = await upsertStandardRow(client, fields, source, true, log);
     const payload = {
       attributes: detail.attributes ?? null,
       relations: detail.relations ?? null
@@ -755,6 +793,27 @@ export async function upsertStandardFromDetail(
     );
     for (const edge of relationEdgesFromDetail(detail)) {
       await storeRelationEdge(client, edge, row.id, source);
+    }
+    // A parenthetical code in the detail's own code ("TCVN 9386-1:2012
+    // (ISO 3010:2001)") is an equivalent designation — link it when it
+    // light-normalizes to a real key (prose/date parentheticals don't).
+    if (light.parenthetical) {
+      const parenLight = lightNormalizeCode(light.parenthetical);
+      if (parenLight !== null && parenLight.normalized_code !== null) {
+        await storeRelationEdge(
+          client,
+          {
+            fromCodeRaw: 'SELF',
+            fromYear: null,
+            type: 'equivalent',
+            toCodeRaw: light.parenthetical,
+            toYear: null,
+            toRawOnly: false
+          },
+          row.id,
+          source
+        );
+      }
     }
     return [row.id];
   });
@@ -781,7 +840,7 @@ export interface LookupResult {
 }
 
 const EDITION_ORDER = `ORDER BY year DESC NULLS LAST, is_amendment ASC,
-  (normalized_code LIKE '%FDIS%') ASC, updated_at DESC`;
+  is_draft ASC, updated_at DESC`;
 
 function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (ch) => `\\${ch}`);
@@ -801,7 +860,7 @@ export async function lookupByCode(
 ): Promise<LookupResult | null> {
   const light = lightNormalizeCode(query);
   let rows: StandardRow[] = [];
-  if (light !== null) {
+  if (light !== null && light.normalized_code !== null && light.base_key !== null) {
     if (light.year !== null) {
       const exact = await pool.query<StandardRow>(
         'SELECT * FROM standards WHERE normalized_code = $1',

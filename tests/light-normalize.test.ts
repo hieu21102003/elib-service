@@ -13,8 +13,11 @@ interface SharedCase {
   normalized_code: string | null;
   base_key: string | null;
   year: number | null;
+  amendment_year: number | null;
   is_amendment: boolean | null;
+  is_draft: boolean | null;
   needs_review: boolean | null;
+  skipped_reason: string | null;
 }
 
 const shared = JSON.parse(
@@ -30,15 +33,21 @@ describe('lightNormalizeCode — fixture khóa dùng chung hai repo', () => {
         normalized_code: light?.normalized_code ?? null,
         base_key: light?.base_key ?? null,
         year: light?.year ?? null,
+        amendment_year: light?.amendment_year ?? null,
         is_amendment: light?.is_amendment ?? null,
-        needs_review: light?.needs_review ?? null
+        is_draft: light?.is_draft ?? null,
+        needs_review: light?.needs_review ?? null,
+        skipped_reason: light?.skipped_reason ?? null
       };
       const want = {
         normalized_code: c.normalized_code,
         base_key: c.base_key,
         year: c.year,
+        amendment_year: c.amendment_year,
         is_amendment: c.is_amendment,
-        needs_review: c.needs_review
+        is_draft: c.is_draft,
+        needs_review: c.needs_review,
+        skipped_reason: c.skipped_reason
       };
       if (JSON.stringify(got) !== JSON.stringify(want)) {
         mismatches.push(
@@ -277,6 +286,123 @@ describe('lightNormalizeCode — base_key/year từ ":năm" ĐẦU TIÊN', () =>
     expect(plain?.base_key).toBe('ISO9001');
     expect(plain?.year).toBe(2015);
     expect(plain?.needs_review).toBe(false);
+  });
+});
+
+describe('lightNormalizeCode — -YY chỉ cho allowlist tổ chức năm 2 chữ số (vòng sửa cuối)', () => {
+  it('QT-style: số phần 2 chữ số trùng 2 số cuối của year KHÔNG bị nuốt thành năm', () => {
+    const light = lightNormalizeCode('ISO 1234-13', 2013);
+    expect(light?.normalized_code).toBe('ISO1234-13:2013');
+    expect(light?.normalized_code).not.toBe('ISO1234:2013');
+    expect(light?.year).toBe(2013);
+    expect(light?.base_key).toBe('ISO1234-13');
+    expect(light?.needs_review).toBe(true);
+  });
+
+  it('allowlist vẫn đổi: ASTM, AASHTO, GBJ, GB, TCN cũ', () => {
+    expect(lightNormalizeCode('ASTM D 4719-07', 2007)?.normalized_code).toBe('ASTMD4719:2007');
+    expect(lightNormalizeCode('AASHTO T27-99', 1999)?.normalized_code).toBe('AASHTOT27:1999');
+    expect(lightNormalizeCode('GBJ 22-87', 1987)?.normalized_code).toBe('GBJ22:1987');
+    expect(lightNormalizeCode('GB 50157-03', 2003)?.normalized_code).toBe('GB50157:2003');
+    expect(lightNormalizeCode('14 TCN 58-88', 1988)?.normalized_code).toBe('14TCN58:1988');
+    expect(lightNormalizeCode('ASTM C172-04', 2004)?.normalized_code).toBe('ASTMC172:2004');
+  });
+
+  it('ngoài allowlist: giữ -YY + nối :year + needs_review; EN 1993-1-10 không đổi', () => {
+    const en = lightNormalizeCode('EN 1993-1-10', 2010);
+    expect(en?.normalized_code).toBe('EN1993-1-10:2010');
+    const tcvn = lightNormalizeCode('TCVN 1234-13', 2013);
+    expect(tcvn?.normalized_code).toBe('TCVN1234-13:2013');
+    expect(tcvn?.needs_review).toBe(true);
+  });
+});
+
+describe('lightNormalizeCode — cắt từ "(" + văn xuôi catalog (vòng sửa cuối)', () => {
+  it('cắt ngoặc: khóa sạch, parenthetical giữ riêng, hết năm đôi', () => {
+    const light = lightNormalizeCode('TCVN 13566:2022 (các phần 1-6)', 2022);
+    expect(light?.normalized_code).toBe('TCVN13566:2022');
+    expect(light?.parenthetical).toBe('các phần 1-6');
+    expect(light?.needs_review).toBe(false);
+
+    const equiv = lightNormalizeCode('TCVN 9386-1:2012 (ISO 3010:2001)', 2012);
+    expect(equiv?.normalized_code).toBe('TCVN9386-1:2012');
+    expect(equiv?.parenthetical).toBe('ISO 3010:2001');
+    expect(lightNormalizeCode(equiv?.parenthetical ?? '')?.normalized_code).toBe(
+      'ISO3010:2001'
+    );
+
+    // Ngoặc không đóng vẫn cắt được:
+    const unclosed = lightNormalizeCode('TCVN 13695-1:2023 (BS EN 13146-1:2019', 2023);
+    expect(unclosed?.normalized_code).toBe('TCVN13695-1:2023');
+    expect(unclosed?.parenthetical).toBe('BS EN 13146-1:2019');
+  });
+
+  it('ngoặc ngày "(YYYY-MM)" cấp năm khi không có trường year', () => {
+    const light = lightNormalizeCode('ISO 9001 (2008-11)');
+    expect(light?.normalized_code).toBe('ISO9001:2008');
+    expect(light?.year).toBe(2008);
+  });
+
+  it('văn xuôi (đến / các phần / dấu phẩy) -> không tạo khóa, needs_review, skipped_reason', () => {
+    const range = lightNormalizeCode('BS EN 13146-1 đến 10:2019', 2019);
+    expect(range).not.toBeNull();
+    expect(range?.normalized_code).toBeNull();
+    expect(range?.needs_review).toBe(true);
+    expect(range?.skipped_reason).toBe('catalog-prose');
+
+    const comma = lightNormalizeCode('TCVN 13566-1,2,3,4,5:2022', 2022);
+    expect(comma?.normalized_code).toBeNull();
+    expect(comma?.skipped_reason).toBe('catalog-prose');
+
+    const va = lightNormalizeCode('TCVN 13566-1, 2, 3, 4 và 5:2022', 2022);
+    expect(va?.normalized_code).toBeNull();
+
+    // Mã thật không bị gắn nhầm:
+    expect(lightNormalizeCode('TCVN 9143:2022')?.skipped_reason).toBeNull();
+    expect(lightNormalizeCode('EN 50129')?.normalized_code).toBe('EN50129');
+  });
+
+  it('khóa phải khớp [A-Z0-9.\\-:/+_]', () => {
+    const light = lightNormalizeCode('TCVN 9143:2022');
+    expect(/^[A-Z0-9.\-:\/+_]+$/.test(light?.normalized_code ?? '')).toBe(true);
+  });
+});
+
+describe('lightNormalizeCode — amendment đứng một mình + is_draft + IEEE Std (vòng sửa cuối)', () => {
+  it('ISO 231123-1/AC:2009 -> base ISO231123-1, year null, amendment_year 2009', () => {
+    const light = lightNormalizeCode('ISO 231123-1/AC:2009');
+    expect(light?.normalized_code).toBe('ISO231123-1/AC:2009');
+    expect(light?.base_key).toBe('ISO231123-1');
+    expect(light?.year).toBeNull();
+    expect(light?.amendment_year).toBe(2009);
+    expect(light?.is_amendment).toBe(true);
+  });
+
+  it('amendment sau năm chính: year = năm chính, amendment_year riêng', () => {
+    const light = lightNormalizeCode('ISO 9001:2015/Amd 1:2016', 2015);
+    expect(light?.year).toBe(2015);
+    expect(light?.amendment_year).toBe(2016);
+    expect(light?.base_key).toBe('ISO9001');
+    const plus = lightNormalizeCode('EN 1994-1-1:2004+A1:2010', 2004);
+    expect(plus?.year).toBe(2004);
+    expect(plus?.amendment_year).toBe(2010);
+  });
+
+  it('is_draft: FDIS/DIS/PRF/prEN/FprEN', () => {
+    expect(lightNormalizeCode('ISO/FDIS 9001', 2015)?.is_draft).toBe(true);
+    expect(lightNormalizeCode('ISO/DIS 9001', 2015)?.is_draft).toBe(true);
+    expect(lightNormalizeCode('prEN 1090-2:2018')?.is_draft).toBe(true);
+    expect(lightNormalizeCode('FprEN 1090-2:2018')?.is_draft).toBe(true);
+    expect(lightNormalizeCode('ISO 9001:2015')?.is_draft).toBe(false);
+    expect(lightNormalizeCode('TCVN 9143:2022')?.is_draft).toBe(false);
+  });
+
+  it('bỏ "STD" sau IEEE', () => {
+    expect(lightNormalizeCode('IEEE Std 802.11:2020', 2020)?.normalized_code).toBe(
+      'IEEE802.11:2020'
+    );
+    expect(lightNormalizeCode('IEEE Std 802.11')?.normalized_code).toBe('IEEE802.11');
+    expect(lightNormalizeCode('IEEE 802.3:2022')?.normalized_code).toBe('IEEE802.3:2022');
   });
 });
 

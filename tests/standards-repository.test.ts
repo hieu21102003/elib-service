@@ -73,6 +73,8 @@ function makeRow(overrides: Partial<StandardRow> = {}): StandardRow {
     detail_level: 'full',
     parse_confidence: '0.9',
     is_amendment: false,
+    amendment_year: null,
+    is_draft: false,
     needs_review: false,
     last_verified_at: new Date('2026-11-01T00:00:00Z'),
     created_at: new Date('2026-11-01T00:00:00Z'),
@@ -101,6 +103,8 @@ describe('mergeStandardFields — quy tắc gộp 4.3', () => {
     detail_level: 'summary' as const,
     parse_confidence: 0.8,
     is_amendment: false,
+    amendment_year: null,
+    is_draft: false,
     needs_review: false
   };
 
@@ -346,7 +350,8 @@ class FakeDb {
         suffix: p[5], normalized_code: p[6], base_key: p[7], code_display: p[8],
         title_vi: null, title_en: null, status: 'Unknown', issued_date: null,
         effective_date: null, ics: null, detail_level: 'stub',
-        parse_confidence: String(p[9]), is_amendment: p[10], needs_review: p[11],
+        parse_confidence: String(p[9]), is_amendment: p[10],
+        amendment_year: p[11], is_draft: p[12], needs_review: p[13],
         last_verified_at: null, created_at: now, updated_at: now
       };
     }
@@ -356,8 +361,9 @@ class FakeDb {
       suffix: p[5], normalized_code: p[6], base_key: p[7], code_display: p[8],
       title_vi: p[9], title_en: p[10], status: p[11], issued_date: p[12],
       effective_date: p[13], ics: p[14], detail_level: p[15],
-      parse_confidence: String(p[16]), is_amendment: p[17], needs_review: p[18],
-      last_verified_at: p[19], created_at: now, updated_at: now
+      parse_confidence: String(p[16]), is_amendment: p[17],
+      amendment_year: p[18], is_draft: p[19], needs_review: p[20],
+      last_verified_at: p[21], created_at: now, updated_at: now
     };
   }
 
@@ -397,7 +403,8 @@ class FakeDb {
       const keys = [
         'org', 'number', 'part', 'year', 'amendment', 'suffix', 'code_display',
         'title_vi', 'title_en', 'status', 'issued_date', 'effective_date', 'ics',
-        'detail_level', 'parse_confidence', 'is_amendment', 'needs_review'
+        'detail_level', 'parse_confidence', 'is_amendment', 'amendment_year',
+        'is_draft', 'needs_review'
       ];
       keys.forEach((k, i) => {
         row[k] = k === 'parse_confidence' ? String(params[i + 1]) : params[i + 1];
@@ -483,16 +490,22 @@ describe('ingest với khóa chuẩn hóa nhẹ (FakeDb, không cần PostgreSQL
     expect(db.standards.has('ISO9001:2015')).toBe(true);
     expect(db.standards.has('ISO9001:2008')).toBe(true); // stub cho đích có năm
     expect(db.standards.has('ISOFDIS9001:2015')).toBe(true); // designation riêng
+    // Chuỗi "*" nguyên văn và corrigendum văn xuôi KHÔNG tạo dòng standards nào:
+    expect(db.standards.size).toBe(3);
+    for (const key of db.standards.keys()) {
+      expect(key).not.toContain('*');
+      expect(key).not.toContain('CORRIGENDUM');
+    }
     const byNorm = new Map(db.relations.map((r) => [String(r[4]), r]));
     expect(byNorm.get('ISO9001:2008')?.[2]).not.toBeNull();
     expect(byNorm.get('ISOFDIS9001:2015')?.[2]).not.toBeNull();
     const corr = db.relations.find((r) => String(r[3]).includes('Technical Corrigendum'));
     expect(corr).toBeDefined();
     expect(corr?.[2]).toBeNull(); // to_id NULL — không parse văn xuôi
+    expect(corr?.[3]).toBe('ISO 9001 Technical Corrigendum 1 (2009-07)'); // to_code_raw nguyên văn
   });
 
-  it('bản không năm không bị ghi đè khi sau này có bản có năm', async () => {
-    const db = new FakeDb();
+  it('bản không năm không bị ghi đè khi sau này có bản có năm', async () => {    const db = new FakeDb();
     await upsertStandardFromSearchItem(
       db.asPool(),
       { code: 'TCVN 4253', name: 'Bản không năm' },
@@ -506,6 +519,59 @@ describe('ingest với khóa chuẩn hóa nhẹ (FakeDb, không cần PostgreSQL
     expect(db.standards.size).toBe(2);
     expect(db.standards.get('TCVN4253')?.title_vi).toBe('Bản không năm');
     expect(db.standards.get('TCVN4253:2020')?.title_vi).toBe('Bản 2020');
+  });
+
+  it('needs_review: chỉ tạo mới, không bao giờ cập nhật bản ghi có sẵn', async () => {
+    const db = new FakeDb();
+    const logs: string[] = [];
+    // Lần 1: tạo bản ghi (năm lệch trường -> needs_review)
+    await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'TCVN 9143:2022', year: 2020, name: 'Tên lần 1', status: 'Active' },
+      'TCVN_VN',
+      (m) => logs.push(m)
+    );
+    expect(db.standards.get('TCVN9143:2022')?.title_vi).toBe('Tên lần 1');
+    expect(db.standards.get('TCVN9143:2022')?.needs_review).toBe(true);
+    // Lần 2: payload needs_review khác -> không được sửa bản ghi có sẵn
+    await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'TCVN 9143:2022', year: 2019, name: 'Tên lần 2', status: 'Withdrawn' },
+      'TCVN_VN',
+      (m) => logs.push(m)
+    );
+    expect(db.standards.get('TCVN9143:2022')?.title_vi).toBe('Tên lần 1');
+    expect(db.standards.get('TCVN9143:2022')?.status).toBe('Active');
+    expect(logs.some((l) => l.includes('needs_review'))).toBe(true);
+  });
+
+  it('văn xuôi catalog (đến/dấu phẩy) bị bỏ qua, không tạo bản ghi', async () => {
+    const db = new FakeDb();
+    const logs: string[] = [];
+    const ids = await upsertStandardFromSearchItem(
+      db.asPool(),
+      { code: 'BS EN 13146-1 đến 10:2019', year: 2019 },
+      'TCVN_QT',
+      (m) => logs.push(m)
+    );
+    expect(ids).toEqual([]);
+    expect(db.standards.size).toBe(0);
+    expect(logs.length).toBe(1);
+  });
+
+  it('ngoặc mã tương đương trong code của detail -> cạnh equivalent', async () => {
+    const db = new FakeDb();
+    await upsertStandardFromDetail(
+      db.asPool(),
+      { code: 'TCVN 9386-1:2012 (ISO 3010:2001)', year: 2012, status: 'Active' },
+      'TCVN_VN'
+    );
+    expect(db.standards.has('TCVN9386-1:2012')).toBe(true);
+    expect(db.standards.has('ISO3010:2001')).toBe(true); // stub đích có năm
+    const eq = db.relations.find((r) => r[1] === 'equivalent');
+    expect(eq).toBeDefined();
+    expect(eq?.[3]).toBe('ISO 3010:2001');
+    expect(eq?.[2]).not.toBeNull();
   });
 });
 

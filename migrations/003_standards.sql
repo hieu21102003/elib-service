@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS standards (
     CHECK (detail_level IN ('stub', 'summary', 'full', 'manual')),
   parse_confidence numeric,                     -- confidence_score của parser (best-effort)
   is_amendment boolean NOT NULL DEFAULT false,  -- regex /AMD /COR /AC +A\d trên khóa
+  amendment_year smallint,                      -- năm của đoạn amendment/corrigendum (vd /AC:2009 -> 2009)
+  is_draft boolean NOT NULL DEFAULT false,      -- FDIS/DIS/PRF/prEN/FprEN — xếp dưới bản chính thức
   needs_review boolean NOT NULL DEFAULT false,  -- năm code lệch trường year, hoặc amendment thiếu ":năm"
   last_verified_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),

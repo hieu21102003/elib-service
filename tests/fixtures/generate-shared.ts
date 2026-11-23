@@ -37,8 +37,11 @@ const shared = golden.map(({ input, expected }) => {
     normalized_code: light?.normalized_code ?? null,
     base_key: light?.base_key ?? null,
     year: light?.year ?? null,
+    amendment_year: light?.amendment_year ?? null,
     is_amendment: light?.is_amendment ?? null,
-    needs_review: light?.needs_review ?? null
+    is_draft: light?.is_draft ?? null,
+    needs_review: light?.needs_review ?? null,
+    skipped_reason: light?.skipped_reason ?? null
   };
 });
 

@@ -1,6 +1,7 @@
 // Light code normalization — THE merge key for standards metadata
 // (user decision 2026-11-23, "Đổi hướng khóa gộp" + "5 luật bổ sung"
-// in ~/workspace/standards-metadata-db-plan.md).
+// + "vòng sửa cuối trước Phase 3" in
+// ~/workspace/standards-metadata-db-plan.md).
 //
 // Ingest keys come from LIGHT normalization of the upstream `code`
 // string, NOT from the full parser (code-parser.ts). The full parser
@@ -10,37 +11,60 @@
 // truth for normalized_code.
 //
 // Rules:
-// - uppercase, strip Vietnamese diacritics (NFD + drop combining marks,
-//   đ/Đ -> D), remove whitespace/newlines — EXCEPT whitespace between
-//   two digit groups, which keeps a "-" separator ("TCVN 1234 12" ->
-//   "TCVN1234-12", needs_review). Letter<->digit boundaries still join;
+// - cut the code at the first "(" BEFORE anything else; the
+//   parenthetical is returned separately (`parenthetical`) for the
+//   repository to use as an equivalent-relation raw code. A
+//   parenthetical that is just a date "(YYYY-MM)"/"(YYYY)" supplies
+//   the year when no year field is given (TCVN_QT replaces style);
+// - catalog prose never becomes a key: if the truncated input
+//   contains a comma or Vietnamese range words (đến, các phần, từ,
+//   và — checked diacritic-insensitively), or the built key falls
+//   outside [A-Z0-9.\-:/+_], the result carries
+//   normalized_code = null + skipped_reason = 'catalog-prose' +
+//   needs_review. Ingest logs and creates nothing;
+// - uppercase, strip Vietnamese diacritics (NFD + drop combining
+//   marks, đ/Đ -> D), remove whitespace/newlines — EXCEPT whitespace
+//   between two digit groups, which keeps a "-" separator
+//   ("TCVN 1234 12" -> "TCVN1234-12", needs_review). Letter<->digit
+//   boundaries still join. The token "STD" right after IEEE is
+//   dropped ("IEEE Std 802.11" -> "IEEE802.11");
 // - slash rule: a `/` is dropped iff the char before AND after it are
 //   both letters (ISO/TS -> ISOTS, TCVN/ISO -> TCVNISO, GB/T -> GBT);
-//   kept when it follows a digit (suffixes /Amd 1, /BXD, /AC). Suffixes
-//   are never dropped;
+//   kept when it follows a digit (suffixes /Amd 1, /BXD, /AC).
+//   Suffixes are never dropped;
 // - skip (null) when the normalized string has no two consecutive
 //   letters before a digit: digits-only ("12345"), ICS-like
 //   ("93.160"), single-letter org ("T 27"), letters-only ("abc") are
 //   not standard codes. Ingest skips + logs those, never fails the
 //   batch;
 // - "code has year" ONLY when `:YYYY` (4 digits, not followed by
-//   another digit) appears; base_key = part before the FIRST `:YYYY`,
-//   year = that first year (main edition — "EN 1994-1-1:2004+A1:2010"
-//   -> base EN1994-1-1, year 2004). Two-digit years in the code
-//   ("14 TCN 58-88") stay untouched unless the dash-year rule below
-//   applies;
-// - dash-year rule: a trailing `-YYYY` or `/YYYY` (optionally followed
-//   by `-MM`) equal to the year field is rewritten to `:YYYY`; the
-//   `-MM` month is dropped from the key (month is not part of a
-//   standard's identity). A trailing `-YY` counts only when it equals
-//   the last two digits of the year field AND no other "-" precedes it
-//   (protects part-chapter codes like "EN 1993-1-10" from being read
-//   as year 2010); it becomes `:YYYY` with the full field year. A
-//   trailing 4-digit dash segment that DISAGREES with the year field
-//   stays literal, `:fieldYear` is still appended (code lacks
-//   `:YYYY`), and needs_review is set (year conflict). Amendment
-//   codes are exempt from the rewrite (their year handling is already
-//   needs_review territory);
+//   another digit) appears; base_key = part before the FIRST
+//   `:YYYY`, year = that first year (main edition —
+//   "EN 1994-1-1:2004+A1:2010" -> base EN1994-1-1, year 2004).
+//   Two-digit years in the code ("14 TCN 58-88") stay untouched
+//   unless the dash-year rule below applies;
+// - standalone amendment ("ISO 231123-1/AC:2009"): when the first
+//   `:YYYY` sits AFTER an amendment marker (/AMD, /COR, /AC, +A\d)
+//   and no `:YYYY` precedes the marker, that year is the amendment's
+//   year (stored in amendment_year), base_key = part before the
+//   marker, and the main year stays null (or the year field when
+//   given). When a main `:YYYY` precedes the marker, a `:YYYY` after
+//   the marker is amendment_year and the main year is the first one;
+// - dash-year rule: a trailing `-YYYY` or `/YYYY` (optionally
+//   followed by `-MM`) equal to the year field is rewritten to
+//   `:YYYY`; the `-MM` month is dropped from the key (month is not
+//   part of a standard's identity). A trailing `-YY` becomes
+//   `:YYYY` (full field year) ONLY when it equals the last two
+//   digits of the year field, no other "-" precedes it (protects
+//   part-chapter codes like "EN 1993-1-10"), AND the org is in the
+//   two-digit-year allowlist (ASTM, AASHTO, GBJ, GB, old
+//   TCN/TCXD/TCXDVN) — for any other org a matching `-YY` may be a
+//   part number ("ISO 1234-13" + 2013), so it stays literal,
+//   `:fieldYear` is appended and needs_review is set. A trailing
+//   4-digit dash segment that DISAGREES with the year field stays
+//   literal, `:fieldYear` is still appended (code lacks `:YYYY`),
+//   and needs_review is set (year conflict). Amendment codes are
+//   exempt from the rewrite;
 // - code has `:YYYY` != yearField -> key from code, needs_review;
 // - code has no `:YYYY` but yearField present -> append `:yearField`,
 //   EXCEPT amendment-suffixed codes (no append, needs_review);
@@ -48,23 +72,40 @@
 //   [1900, current year + 1], and when the leading letter block is a
 //   doubled org prefix ("ENEN", "EN EN", "TCVNTCVN") — the doubled
 //   form is kept in the key, never collapsed;
-// - is_amendment by simple regex (/AMD, /COR, /AC, +A\d).
+// - is_amendment by simple regex (/AMD, /COR, /AC, +A\d);
+// - is_draft when the code carries a draft token (FDIS, DIS, PRF,
+//   prEN, FprEN) — drafts sort below the official edition.
 
 export interface LightNormalized {
-  normalized_code: string;
-  base_key: string;
+  /** Null only for catalog prose (see skipped_reason). */
+  normalized_code: string | null;
+  base_key: string | null;
   year: number | null;
+  /** Year of the amendment/corrigendum segment, when present. */
+  amendment_year: number | null;
   is_amendment: boolean;
+  is_draft: boolean;
   needs_review: boolean;
+  /** Text after the first "(" (trailing ")" stripped), if any. */
+  parenthetical: string | null;
+  /** 'catalog-prose' when no key was created; otherwise null. */
+  skipped_reason: string | null;
 }
 
 const LETTER_RE = /\p{L}/u;
 const AMENDMENT_RE = /(?:\/AMD|\/COR|\/AC|\+A\d)/;
-const COLON_YEAR_RE = /:(\d{4})(?!\d)/;
+const COLON_YEAR_RE = /:(\d{4})(?!\d)/g;
 const DASH_YEAR_RE = /[-/](\d{4})(?:-\d{2})?$/;
 const DASH_YY_RE = /-(\d{2})$/;
 const ORG_LETTERS_RE = /[A-Z]{2}.*\d/;
 const LEADING_LETTERS_RE = /^[A-Z]+/;
+const KEY_CHARSET_RE = /^[A-Z0-9.\-:\/+_]+$/;
+const PAREN_DATE_RE = /^(\d{4})(?:-\d{1,2})?$/;
+const DRAFT_RE = /(FDIS|FPREN|PREN|PRF|DIS)/;
+/** Orgs that historically write 2-digit years (ASTM D 4719-07...). */
+const TWO_DIGIT_YEAR_ORGS = /(ASTM|AASHTO|GBJ|TCXDVN|TCXD|TCN|GB)/;
+/** Vietnamese catalog-range words, checked on diacritic-stripped text. */
+const PROSE_WORDS_RE = /\b(DEN|CAC PHAN|TU|VA)\b/;
 
 function stripDiacriticsUpper(text: string): string {
   return text
@@ -102,6 +143,20 @@ function yearInRange(year: number): boolean {
   return year >= 1900 && year <= new Date().getFullYear() + 1;
 }
 
+function proseSkip(parenthetical: string | null): LightNormalized {
+  return {
+    normalized_code: null,
+    base_key: null,
+    year: null,
+    amendment_year: null,
+    is_amendment: false,
+    is_draft: false,
+    needs_review: true,
+    parenthetical,
+    skipped_reason: 'catalog-prose'
+  };
+}
+
 export function lightNormalizeCode(
   code: string,
   yearField?: number | null
@@ -110,7 +165,23 @@ export function lightNormalizeCode(
   const trimmed = code.trim();
   if (trimmed.length === 0) return null;
 
-  let text = stripDiacriticsUpper(trimmed);
+  // Cut at the first "(" — parenthetical content never enters the key.
+  let main = trimmed;
+  let parenthetical: string | null = null;
+  const parenIdx = trimmed.indexOf('(');
+  if (parenIdx >= 0) {
+    main = trimmed.slice(0, parenIdx).trim();
+    parenthetical = trimmed.slice(parenIdx + 1).replace(/\)\s*$/, '').trim() || null;
+  }
+  if (main.length === 0) return null;
+
+  // Catalog prose (comma lists, Vietnamese range words) is not a code.
+  const mainStripped = stripDiacriticsUpper(main);
+  if (main.includes(',') || PROSE_WORDS_RE.test(mainStripped)) {
+    return proseSkip(parenthetical);
+  }
+
+  let text = mainStripped;
   // Whitespace between two digit groups keeps a "-" separator instead
   // of joining ("TCVN 1234 12" -> "TCVN1234-12"); flagged for review
   // because the grouping is ambiguous.
@@ -120,6 +191,8 @@ export function lightNormalizeCode(
     return `${a}-${b}`;
   });
   text = text.replace(/\s+/g, '');
+  // "IEEE Std 802.11" -> "IEEE802.11": STD is not part of the code.
+  if (text.startsWith('IEEESTD')) text = `IEEE${text.slice('IEEESTD'.length)}`;
   let light = applySlashRule(text);
 
   // A standard code carries an org of at least two letters before its
@@ -128,16 +201,31 @@ export function lightNormalizeCode(
   if (!ORG_LETTERS_RE.test(light)) return null;
 
   const isAmendment = AMENDMENT_RE.test(light);
+  const isDraft = DRAFT_RE.test(light);
+  // A date-only parenthetical "(YYYY-MM)" supplies the year when the
+  // caller gave none (TCVN_QT replaces parts arrive pre-split, but
+  // detail codes can carry the note inline).
+  const parenYear =
+    parenthetical !== null && PAREN_DATE_RE.test(parenthetical)
+      ? Number(PAREN_DATE_RE.exec(parenthetical)?.[1])
+      : null;
   const fieldYear =
-    typeof yearField === 'number' && Number.isInteger(yearField) ? yearField : null;
+    typeof yearField === 'number' && Number.isInteger(yearField) ? yearField : parenYear;
   let needsReview = digitGroupSep || hasDoubledOrg(light);
 
+  const hasColonYear = (): boolean => {
+    COLON_YEAR_RE.lastIndex = 0;
+    return COLON_YEAR_RE.test(light);
+  };
+
   // Dash-year rule: trailing -YYYY or /YYYY (optional -MM) matching
-  // the year field becomes :YYYY (month dropped). -YY only when it
-  // matches the field year's last two digits and no other "-" comes
-  // before it. A disagreeing 4-digit dash segment stays literal and
-  // flags a year conflict.
-  if (!COLON_YEAR_RE.test(light) && !isAmendment && fieldYear !== null) {
+  // the year field becomes :YYYY (month dropped). -YY only for the
+  // two-digit-year org allowlist, when it matches the field year's
+  // last two digits and no other "-" comes before it; for other orgs
+  // a matching -YY may be a part number, so it stays literal and
+  // flags review. A disagreeing 4-digit dash segment stays literal
+  // and flags a year conflict.
+  if (!hasColonYear() && !isAmendment && fieldYear !== null) {
     const dashYear = DASH_YEAR_RE.exec(light);
     if (dashYear && Number(dashYear[1]) === fieldYear) {
       light = `${light.slice(0, dashYear.index)}:${dashYear[1]}`;
@@ -150,57 +238,93 @@ export function lightNormalizeCode(
         Number(dashYY[1]) === fieldYear % 100 &&
         !light.slice(0, dashYY.index).includes('-')
       ) {
-        light = `${light.slice(0, dashYY.index)}:${fieldYear}`;
+        if (TWO_DIGIT_YEAR_ORGS.test(light.slice(0, dashYY.index))) {
+          light = `${light.slice(0, dashYY.index)}:${fieldYear}`;
+        } else {
+          needsReview = true;
+        }
       }
     }
   }
 
-  const yearSeg = COLON_YEAR_RE.exec(light);
-  if (yearSeg) {
-    const codeYear = Number(yearSeg[1]);
+  const finish = (
+    normalized: string,
+    baseKey: string,
+    year: number | null,
+    amendmentYear: number | null,
+    review: boolean
+  ): LightNormalized => {
+    if (!KEY_CHARSET_RE.test(normalized)) return proseSkip(parenthetical);
     return {
-      normalized_code: light,
-      base_key: light.slice(0, yearSeg.index),
-      year: codeYear,
+      normalized_code: normalized,
+      base_key: baseKey,
+      year,
+      amendment_year: amendmentYear,
       is_amendment: isAmendment,
-      needs_review:
-        needsReview ||
-        (fieldYear !== null && fieldYear !== codeYear) ||
-        !yearInRange(codeYear)
+      is_draft: isDraft,
+      needs_review: review,
+      parenthetical,
+      skipped_reason: null
     };
+  };
+
+  // Locate :YYYY segments and the amendment marker (if any).
+  COLON_YEAR_RE.lastIndex = 0;
+  const yearSegs = [...light.matchAll(COLON_YEAR_RE)];
+  const marker = AMENDMENT_RE.exec(light);
+
+  if (yearSegs.length > 0) {
+    const first = yearSegs[0];
+    const firstYear = Number(first[1]);
+    const firstIdx = first.index ?? 0;
+    if (isAmendment && marker && firstIdx > (marker.index ?? 0)) {
+      // Standalone amendment: the only :YYYY belongs to the amendment
+      // segment. Main year is unknown unless the field provides it.
+      return finish(
+        light,
+        light.slice(0, marker.index),
+        fieldYear,
+        firstYear,
+        needsReview || !yearInRange(firstYear)
+      );
+    }
+    // Main year = first :YYYY; a later :YYYY after an amendment
+    // marker is the amendment's year.
+    let amendmentYear: number | null = null;
+    if (isAmendment && marker) {
+      const after = yearSegs.find((s) => (s.index ?? 0) > (marker.index ?? 0));
+      if (after) amendmentYear = Number(after[1]);
+    }
+    return finish(
+      light,
+      light.slice(0, firstIdx),
+      firstYear,
+      amendmentYear,
+      needsReview ||
+        (fieldYear !== null && fieldYear !== firstYear) ||
+        !yearInRange(firstYear)
+    );
   }
 
   if (fieldYear !== null) {
     if (isAmendment) {
       // Amendment suffix without ":year": do not append the field year
       // (it would fake the base edition's key) — flag for review.
-      return {
-        normalized_code: light,
-        base_key: light,
-        year: fieldYear,
-        is_amendment: true,
-        needs_review: true
-      };
+      return finish(light, light, fieldYear, null, true);
     }
-    return {
-      normalized_code: `${light}:${fieldYear}`,
-      base_key: light,
-      year: fieldYear,
-      is_amendment: false,
-      needs_review: needsReview || !yearInRange(fieldYear)
-    };
+    return finish(
+      `${light}:${fieldYear}`,
+      light,
+      fieldYear,
+      null,
+      needsReview || !yearInRange(fieldYear)
+    );
   }
 
-  return {
-    normalized_code: light,
-    base_key: light,
-    year: null,
-    is_amendment: isAmendment,
-    needs_review: needsReview
-  };
+  return finish(light, light, null, null, needsReview);
 }
 
-/** FDIS drafts sort below the official edition in lookup results. */
+/** Drafts (FDIS/DIS/PRF/prEN...) sort below the official edition. */
 export function isFdisCode(normalizedCode: string): boolean {
   return normalizedCode.includes('FDIS');
 }

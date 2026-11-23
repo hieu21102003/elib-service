@@ -82,8 +82,8 @@ function cell(value: string | number | boolean | null): string {
 
 function table(rows: Row[], withSource: boolean): string {
   const header = withSource
-    ? '| input code | year field | normalized_code | base_key | year | is_amendment | needs_review | source |\n|---|---|---|---|---|---|---|---|'
-    : '| input code | year field | normalized_code | base_key | year | is_amendment | needs_review |\n|---|---|---|---|---|---|---|';
+    ? '| input code | year field | normalized_code | base_key | year | amendment_year | is_amendment | is_draft | needs_review | skipped_reason | source |\n|---|---|---|---|---|---|---|---|---|---|---|'
+    : '| input code | year field | normalized_code | base_key | year | amendment_year | is_amendment | is_draft | needs_review | skipped_reason |\n|---|---|---|---|---|---|---|---|---|---|';
   const lines = rows.map((row) => {
     const light = lightNormalizeCode(row.code, row.yearField);
     const base = [
@@ -92,8 +92,11 @@ function table(rows: Row[], withSource: boolean): string {
       cell(light?.normalized_code ?? null),
       cell(light?.base_key ?? null),
       cell(light?.year ?? null),
+      cell(light?.amendment_year ?? null),
       cell(light?.is_amendment ?? null),
-      cell(light?.needs_review ?? null)
+      cell(light?.is_draft ?? null),
+      cell(light?.needs_review ?? null),
+      cell(light?.skipped_reason ?? null)
     ];
     if (withSource) base.push(cell(row.source));
     return `| ${base.join(' | ')} |`;
