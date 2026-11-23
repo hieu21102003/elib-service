@@ -1,4 +1,4 @@
-import type { CurrentUser, DocumentAccessRow } from '../auth/session.js';
+import { canAccessInternal, type CurrentUser, type DocumentAccessRow } from '../auth/session.js';
 
 /** Mảnh SQL + tham số đi kèm, dùng để ghép vào câu truy vấn lớn hơn. */
 export interface SqlFragment {
@@ -13,13 +13,13 @@ export interface SqlFragment {
  *
  * Phải khớp CHÍNH XÁC ma trận của canDownload() trong src/auth/session.ts:
  * - published + public: mọi người (kể cả chưa đăng nhập).
- * - published + internal: người dùng đã đăng nhập.
+ * - published + internal: CHỈ người nội bộ (user_type=internal) hoặc editor/admin.
  * - published + private: người tạo hoặc admin.
  * - draft/hidden: người tạo, editor, admin.
  *
- * Chưa đăng nhập = userId NULL, role NULL. Tham số được đánh số từ `startParam`
- * (userId trước, role sau) để ghép được với các điều kiện khác trong cùng câu SQL.
- * `alias` là alias của bảng documents trong câu truy vấn (mặc định 'd').
+ * Chưa đăng nhập = userId NULL, role NULL, userType NULL. Tham số được đánh số
+ * từ `startParam` (userId, role, userType) để ghép được với các điều kiện khác
+ * trong cùng câu SQL. `alias` là alias của bảng documents (mặc định 'd').
  */
 export function visibleDocumentsWhere(
   user: CurrentUser | null,
@@ -28,13 +28,14 @@ export function visibleDocumentsWhere(
 ): SqlFragment {
   const uid = `$${startParam}`;
   const role = `$${startParam + 1}`;
+  const userType = `$${startParam + 2}`;
   const sql = `(
     (${alias}.status = 'published' AND ${alias}.visibility = 'public')
-    OR (${alias}.status = 'published' AND ${alias}.visibility = 'internal' AND ${uid}::uuid IS NOT NULL)
+    OR (${alias}.status = 'published' AND ${alias}.visibility = 'internal' AND ${uid}::uuid IS NOT NULL AND (${userType}::text = 'internal' OR ${role}::text IN ('editor', 'admin')))
     OR (${alias}.status = 'published' AND ${alias}.visibility = 'private' AND (${uid}::uuid = ${alias}.created_by OR ${role}::text = 'admin'))
     OR (${alias}.status IN ('draft', 'hidden') AND (${uid}::uuid = ${alias}.created_by OR ${role}::text IN ('editor', 'admin')))
   )`;
-  return { sql, params: [user?.id ?? null, user?.role ?? null] };
+  return { sql, params: [user?.id ?? null, user?.role ?? null, user?.userType ?? null] };
 }
 
 /**
@@ -47,7 +48,7 @@ export function visibleInList(user: CurrentUser | null, doc: DocumentAccessRow):
   const isOwner = !!user && user.id === doc.created_by;
   const role = user?.role ?? null;
   if (doc.status === 'published' && doc.visibility === 'public') return true;
-  if (doc.status === 'published' && doc.visibility === 'internal') return !!user;
+  if (doc.status === 'published' && doc.visibility === 'internal') return canAccessInternal(user);
   if (doc.status === 'published' && doc.visibility === 'private') {
     return isOwner || role === 'admin';
   }

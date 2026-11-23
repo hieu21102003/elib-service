@@ -20,8 +20,17 @@ import { loadConfig } from '../src/config.js';
 const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_ID = '22222222-2222-4222-8222-222222222222';
 
-function makeUser(role: UserRole, id = OWNER_ID): CurrentUser {
-  return { id, email: `${role}@congty.vn`, role, displayName: null };
+function makeUser(role: UserRole, id = OWNER_ID, userType: CurrentUser['userType'] = 'internal'): CurrentUser {
+  return {
+    id,
+    username: null,
+    email: `${role}@congty.vn`,
+    role,
+    displayName: null,
+    userType,
+    status: 'active',
+    mustChangePassword: false
+  };
 }
 
 describe('ma trận quyền danh sách — visibleInList phải khớp canDownload ở MỌI tổ hợp', () => {
@@ -57,6 +66,32 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
     expect(combos).toBe(72);
   });
 
+  it('đối chiếu thêm chiều user_type: external/NULL vẫn khớp canDownload ở mọi tổ hợp', () => {
+    const typedUsers: Array<{ label: string; user: CurrentUser }> = [
+      { label: 'viewer external', user: makeUser('viewer', OWNER_ID, 'external') },
+      { label: 'viewer user_type NULL', user: makeUser('viewer', OWNER_ID, null) },
+      { label: 'editor external', user: makeUser('editor', OWNER_ID, 'external') },
+      { label: 'admin external', user: makeUser('admin', OWNER_ID, 'external') }
+    ];
+    for (const { label, user } of typedUsers) {
+      for (const isOwner of [true, false]) {
+        for (const visibility of visibilities) {
+          for (const status of statuses) {
+            const doc: DocumentAccessRow = {
+              status,
+              visibility,
+              created_by: isOwner ? OWNER_ID : OTHER_ID
+            };
+            expect(
+              visibleInList(user, doc),
+              `${label} / ${isOwner ? 'người tạo' : 'không phải người tạo'} / ${status}+${visibility}`
+            ).toBe(canDownload(user, doc));
+          }
+        }
+      }
+    }
+  });
+
   it('các ô tiêu biểu của ma trận', () => {
     const viewer = makeUser('viewer');
     const editor = makeUser('editor');
@@ -68,9 +103,18 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
     });
     // published + public: mọi người
     expect(visibleInList(null, doc('published', 'public', OTHER_ID))).toBe(true);
-    // published + internal: cần đăng nhập
+    // published + internal: chỉ người nội bộ hoặc editor/admin
     expect(visibleInList(null, doc('published', 'internal', OTHER_ID))).toBe(false);
     expect(visibleInList(viewer, doc('published', 'internal', OTHER_ID))).toBe(true);
+    const externalViewer = makeUser('viewer', OWNER_ID, 'external');
+    expect(visibleInList(externalViewer, doc('published', 'internal', OTHER_ID))).toBe(false);
+    expect(canDownload(externalViewer, doc('published', 'internal', OTHER_ID))).toBe(false);
+    expect(visibleInList(externalViewer, doc('published', 'public', OTHER_ID))).toBe(true);
+    const unassignedViewer = makeUser('viewer', OWNER_ID, null);
+    expect(visibleInList(unassignedViewer, doc('published', 'internal', OTHER_ID))).toBe(false);
+    // editor/admin vẫn thấy internal dù user_type external (role quyết định)
+    expect(visibleInList(makeUser('editor', OWNER_ID, 'external'), doc('published', 'internal', OTHER_ID))).toBe(true);
+    expect(visibleInList(makeUser('admin', OWNER_ID, 'external'), doc('published', 'internal', OTHER_ID))).toBe(true);
     // published + private: người tạo hoặc admin (editor không phải người tạo thì KHÔNG)
     expect(visibleInList(editor, doc('published', 'private', OTHER_ID))).toBe(false);
     expect(visibleInList(editor, doc('published', 'private', OWNER_ID))).toBe(true);
@@ -85,24 +129,26 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
 });
 
 describe('visibleDocumentsWhere — mảnh SQL lọc quyền', () => {
-  it('chưa đăng nhập: params [null, null], SQL chứa đủ 4 mệnh đề', () => {
+  it('chưa đăng nhập: params [null, null, null], SQL chứa đủ 4 mệnh đề', () => {
     const frag = visibleDocumentsWhere(null);
-    expect(frag.params).toEqual([null, null]);
+    expect(frag.params).toEqual([null, null, null]);
     expect(frag.sql).toContain("d.status = 'published' AND d.visibility = 'public'");
-    expect(frag.sql).toContain("d.visibility = 'internal' AND $1::uuid IS NOT NULL");
+    expect(frag.sql).toContain("d.visibility = 'internal' AND $1::uuid IS NOT NULL AND ($3::text = 'internal' OR $2::text IN ('editor', 'admin'))");
     expect(frag.sql).toContain("d.visibility = 'private' AND ($1::uuid = d.created_by OR $2::text = 'admin')");
     expect(frag.sql).toContain("d.status IN ('draft', 'hidden') AND ($1::uuid = d.created_by OR $2::text IN ('editor', 'admin'))");
   });
 
-  it('đã đăng nhập: params [userId, role]', () => {
-    expect(visibleDocumentsWhere(makeUser('viewer')).params).toEqual([OWNER_ID, 'viewer']);
-    expect(visibleDocumentsWhere(makeUser('editor')).params).toEqual([OWNER_ID, 'editor']);
-    expect(visibleDocumentsWhere(makeUser('admin')).params).toEqual([OWNER_ID, 'admin']);
+  it('đã đăng nhập: params [userId, role, userType]', () => {
+    expect(visibleDocumentsWhere(makeUser('viewer')).params).toEqual([OWNER_ID, 'viewer', 'internal']);
+    expect(visibleDocumentsWhere(makeUser('editor')).params).toEqual([OWNER_ID, 'editor', 'internal']);
+    expect(visibleDocumentsWhere(makeUser('admin')).params).toEqual([OWNER_ID, 'admin', 'internal']);
+    expect(visibleDocumentsWhere(makeUser('viewer', OWNER_ID, 'external')).params).toEqual([OWNER_ID, 'viewer', 'external']);
   });
 
   it('đánh số tham số từ startParam và dùng alias tùy chọn', () => {
     const frag = visibleDocumentsWhere(makeUser('admin'), 3, 'documents');
     expect(frag.sql).toContain('$3::uuid IS NOT NULL');
+    expect(frag.sql).toContain("$5::text = 'internal'");
     expect(frag.sql).toContain("$4::text = 'admin'");
     expect(frag.sql).toContain('documents.status');
     expect(frag.sql).not.toContain('$1');
