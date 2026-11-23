@@ -6,10 +6,12 @@
 #   docker compose exec elib npm run migrate
 #   docker compose exec elib npm run seed:categories
 #   docker compose exec elib npm run create-admin -- --email admin@congty.vn --password 'MatKhauManh' --name 'Quản trị'
-#   curl http://127.0.0.1:3200/health
+#   docker compose exec elib wget -qO- http://127.0.0.1:3200/health
 #
-# elib chỉ nghe 127.0.0.1:3200 trên host — KHÔNG mở thẳng ra Internet.
-# Người dùng vào qua Reverse_proxy (proxy /api/elib/*) đứng trước.
+# elib KHÔNG publish cổng ra host (quyết định 2026-11-23): chỉ nghe trong
+# mạng Docker. Reverse_proxy gọi qua mạng dùng chung elib-net bằng tên
+# container elib-service:3200; kiểm tra /health từ host bằng
+# `docker compose exec elib wget -qO- http://127.0.0.1:3200/health`.
 
 services:
   postgres:
@@ -58,12 +60,10 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
     volumes:
       - elib_storage:/data/storage
-    ports:
-      # Chỉ localhost trên host (để kiểm tra /health từ host). Reverse_proxy
-      # chạy Docker gọi elib qua mạng dùng chung elib-net bằng tên container
-      # elib-service:3200 — KHÔNG qua cổng host này. Đừng đổi thành
-      # "3200:3200" nếu không có chủ đích.
-      - "127.0.0.1:3200:3200"
+    # Không publish cổng 3200 ra host (quyết định 2026-11-23): elib chỉ tới
+    # được qua mạng Docker (default + elib-net). Reverse_proxy đặt
+    # ELIB_BASE_URL=http://elib-service:3200. Kiểm tra sức khỏe từ host:
+    #   docker compose exec elib wget -qO- http://127.0.0.1:3200/health
     networks:
       - default
       # Mạng dùng chung với Reverse_proxy (tên cố định elib-net, external):

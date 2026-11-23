@@ -1,0 +1,2809 @@
+[
+  {
+    "input": "TCVN 9143:2022",
+    "expected": {
+      "raw_code": "TCVN 9143:2022",
+      "normalized_code": "TCVN 9143:2022",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9143",
+      "series_letter": null,
+      "std_main_number": "9143",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9143",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2022,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 9143:2012",
+    "expected": {
+      "raw_code": "TCVN 9143:2012",
+      "normalized_code": "TCVN 9143:2012",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9143",
+      "series_letter": null,
+      "std_main_number": "9143",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9143",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2012,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 9386-1:2012",
+    "expected": {
+      "raw_code": "TCVN 9386-1:2012",
+      "normalized_code": "TCVN 9386-1:2012",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9386",
+      "series_letter": null,
+      "std_main_number": "9386",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "9386-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2012,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN9386",
+    "expected": {
+      "raw_code": "TCVN9386",
+      "normalized_code": "TCVN9386",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9386",
+      "series_letter": null,
+      "std_main_number": "9386",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9386",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ISO 9001:2015",
+    "expected": {
+      "raw_code": "ISO 9001:2015",
+      "normalized_code": "ISO 9001:2015",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "tcvn 9386-1",
+    "expected": {
+      "raw_code": "tcvn 9386-1",
+      "normalized_code": "tcvn 9386-1",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9386",
+      "series_letter": null,
+      "std_main_number": "9386",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "9386-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "BS EN ISO 9001:2015",
+    "expected": {
+      "raw_code": "BS EN ISO 9001:2015",
+      "normalized_code": "BS EN ISO 9001:2015",
+      "org_prefix": "BS EN ISO",
+      "org_normalized": "BS EN",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "BS EN 13146-3:2019",
+    "expected": {
+      "raw_code": "BS EN 13146-3:2019",
+      "normalized_code": "BS EN 13146-3:2019",
+      "org_prefix": "BS EN",
+      "org_normalized": "BS EN",
+      "org_confidence": 1.0,
+      "series_number": "13146",
+      "series_letter": null,
+      "std_main_number": "13146",
+      "std_part": "-3",
+      "std_parts": [
+        "3"
+      ],
+      "std_code_full": "13146-3",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2019,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "GB/T 19001-2016",
+    "expected": {
+      "raw_code": "GB/T 19001-2016",
+      "normalized_code": "GB/T 19001-2016",
+      "org_prefix": "GB/T",
+      "org_normalized": "GB/T",
+      "org_confidence": 1.0,
+      "series_number": "19001",
+      "series_letter": null,
+      "std_main_number": "19001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "19001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2016,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "GB/Z 12345:2020",
+    "expected": {
+      "raw_code": "GB/Z 12345:2020",
+      "normalized_code": "GB/Z 12345:2020",
+      "org_prefix": "GB/Z",
+      "org_normalized": "GB/Z",
+      "org_confidence": 1.0,
+      "series_number": "12345",
+      "series_letter": null,
+      "std_main_number": "12345",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "12345",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN ISO 9001:2015",
+    "expected": {
+      "raw_code": "TCVN ISO 9001:2015",
+      "normalized_code": "TCVN ISO 9001:2015",
+      "org_prefix": "TCVN ISO",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN EN 1992-1-1:2022",
+    "expected": {
+      "raw_code": "TCVN EN 1992-1-1:2022",
+      "normalized_code": "TCVN EN 1992-1-1:2022",
+      "org_prefix": "TCVN EN",
+      "org_normalized": "TCVN EN",
+      "org_confidence": 1.0,
+      "series_number": "1992",
+      "series_letter": null,
+      "std_main_number": "1992",
+      "std_part": "-1-1",
+      "std_parts": [
+        "1",
+        "1"
+      ],
+      "std_code_full": "1992-1-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2022,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "DIN EN 1090-2:2018",
+    "expected": {
+      "raw_code": "DIN EN 1090-2:2018",
+      "normalized_code": "DIN EN 1090-2:2018",
+      "org_prefix": "DIN EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1090",
+      "series_letter": null,
+      "std_main_number": "1090",
+      "std_part": "-2",
+      "std_parts": [
+        "2"
+      ],
+      "std_code_full": "1090-2",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2018,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN ISO 1234:2020",
+    "expected": {
+      "raw_code": "EN ISO 1234:2020",
+      "normalized_code": "EN ISO 1234:2020",
+      "org_prefix": "EN ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1234",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "DIN ISO 9001:2015",
+    "expected": {
+      "raw_code": "DIN ISO 9001:2015",
+      "normalized_code": "DIN ISO 9001:2015",
+      "org_prefix": "DIN ISO",
+      "org_normalized": "DIN",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN/ISO 9001:2015",
+    "expected": {
+      "raw_code": "TCVN/ISO 9001:2015",
+      "normalized_code": "TCVN/ISO 9001:2015",
+      "org_prefix": "TCVN/ISO",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "QCVN 02:2021/BXD",
+    "expected": {
+      "raw_code": "QCVN 02:2021/BXD",
+      "normalized_code": "QCVN 02:2021/BXD",
+      "org_prefix": "QCVN",
+      "org_normalized": "QCVN",
+      "org_confidence": 1.0,
+      "series_number": "02",
+      "series_letter": null,
+      "std_main_number": "02",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "02",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2021,
+      "amendment": null,
+      "suffix": "BXD",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "suffix": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "BS EN 13146-1 đến 10:2019",
+    "expected": {
+      "raw_code": "BS EN 13146-1 đến 10:2019",
+      "normalized_code": "BS EN 13146-1 đến 10:2019",
+      "org_prefix": "BS EN",
+      "org_normalized": "BS EN",
+      "org_confidence": 1.0,
+      "series_number": "13146",
+      "series_letter": null,
+      "std_main_number": "13146",
+      "std_part": "-1-10",
+      "std_parts": [
+        "1",
+        "10"
+      ],
+      "std_code_full": "13146-1-10",
+      "parts_kind": "range",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "std_year": 2019,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN 13481 (các phần 1, 2, 5, 6, 7)",
+    "expected": {
+      "raw_code": "EN 13481 (các phần 1, 2, 5, 6, 7)",
+      "normalized_code": "EN 13481 (các phần 1, 2, 5, 6, 7)",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "13481",
+      "series_letter": null,
+      "std_main_number": "13481",
+      "std_part": "-1-2-5-6-7",
+      "std_parts": [
+        "1",
+        "2",
+        "5",
+        "6",
+        "7"
+      ],
+      "std_code_full": "13481-1-2-5-6-7",
+      "parts_kind": "list",
+      "expanded_parts": [
+        "1",
+        "2",
+        "5",
+        "6",
+        "7"
+      ],
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "các phần 1, 2, 5, 6, 7",
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "EN 1993-1-10:2005",
+    "expected": {
+      "raw_code": "EN 1993-1-10:2005",
+      "normalized_code": "EN 1993-1-10:2005",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1993",
+      "series_letter": null,
+      "std_main_number": "1993",
+      "std_part": "-1-10",
+      "std_parts": [
+        "1",
+        "10"
+      ],
+      "std_code_full": "1993-1-10",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2005,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566:2022 (các phần 1-6)",
+    "expected": {
+      "raw_code": "TCVN 13566:2022 (các phần 1-6)",
+      "normalized_code": "TCVN 13566:2022 (các phần 1-6)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": "-1-6",
+      "std_parts": [
+        "1",
+        "6"
+      ],
+      "std_code_full": "13566-1-6",
+      "parts_kind": "range",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "std_year": 2022,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "các phần 1-6",
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566 (từ 1 đến 10, 2019)",
+    "expected": {
+      "raw_code": "TCVN 13566 (từ 1 đến 10, 2019)",
+      "normalized_code": "TCVN 13566 (từ 1 đến 10, 2019)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": "-1-10",
+      "std_parts": [
+        "1",
+        "10"
+      ],
+      "std_code_full": "13566-1-10",
+      "parts_kind": "range",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "std_year": 2019,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "từ 1 đến 10, 2019",
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566-1,2,3,4,5:2022",
+    "expected": {
+      "raw_code": "TCVN 13566-1,2,3,4,5:2022",
+      "normalized_code": "TCVN 13566-1,2,3,4,5:2022",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": "-1-2-3-4-5",
+      "std_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "std_code_full": "13566-1-2-3-4-5",
+      "parts_kind": "list",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "std_year": 2022,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566-1, 2, 3, 4 và 5:2022",
+    "expected": {
+      "raw_code": "TCVN 13566-1, 2, 3, 4 và 5:2022",
+      "normalized_code": "TCVN 13566-1, 2, 3, 4 và 5:2022",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": "-1-2-3-4-5",
+      "std_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "std_code_full": "13566-1-2-3-4-5",
+      "parts_kind": "list",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "std_year": 2022,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566 từ 1 đến 10:2019",
+    "expected": {
+      "raw_code": "TCVN 13566 từ 1 đến 10:2019",
+      "normalized_code": "TCVN 13566 từ 1 đến 10:2019",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": "-1-10",
+      "std_parts": [
+        "1",
+        "10"
+      ],
+      "std_code_full": "13566-1-10",
+      "parts_kind": "range",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "std_year": 2019,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 1234:2020 (phần 1 đến 3)",
+    "expected": {
+      "raw_code": "TCVN 1234:2020 (phần 1 đến 3)",
+      "normalized_code": "TCVN 1234:2020 (phần 1 đến 3)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": "-1-3",
+      "std_parts": [
+        "1",
+        "3"
+      ],
+      "std_code_full": "1234-1-3",
+      "parts_kind": "range",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3"
+      ],
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "phần 1 đến 3",
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 1234:2020 (các phần 1, 3, 5)",
+    "expected": {
+      "raw_code": "TCVN 1234:2020 (các phần 1, 3, 5)",
+      "normalized_code": "TCVN 1234:2020 (các phần 1, 3, 5)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": "-1-3-5",
+      "std_parts": [
+        "1",
+        "3",
+        "5"
+      ],
+      "std_code_full": "1234-1-3-5",
+      "parts_kind": "list",
+      "expanded_parts": [
+        "1",
+        "3",
+        "5"
+      ],
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "các phần 1, 3, 5",
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566 (-1 đến 10, 2019)",
+    "expected": {
+      "raw_code": "TCVN 13566 (-1 đến 10, 2019)",
+      "normalized_code": "TCVN 13566 (-1 đến 10, 2019)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": "-1-10",
+      "std_parts": [
+        "1",
+        "10"
+      ],
+      "std_code_full": "13566-1-10",
+      "parts_kind": "range",
+      "expanded_parts": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ],
+      "std_year": 2019,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "-1 đến 10, 2019",
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 1234-1 đến 200:2020",
+    "expected": {
+      "raw_code": "TCVN 1234-1 đến 200:2020",
+      "normalized_code": "TCVN 1234-1 đến 200:2020",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": "-1-200",
+      "std_parts": [
+        "1",
+        "200"
+      ],
+      "std_code_full": "1234-1-200",
+      "parts_kind": "range",
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 7447-4-41:2010",
+    "expected": {
+      "raw_code": "TCVN 7447-4-41:2010",
+      "normalized_code": "TCVN 7447-4-41:2010",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "7447",
+      "series_letter": null,
+      "std_main_number": "7447",
+      "std_part": "-4-41",
+      "std_parts": [
+        "4",
+        "41"
+      ],
+      "std_code_full": "7447-4-41",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2010,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN 1994-1-1:2004/AC:2009",
+    "expected": {
+      "raw_code": "EN 1994-1-1:2004/AC:2009",
+      "normalized_code": "EN 1994-1-1:2004/AC:2009",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1994",
+      "series_letter": null,
+      "std_main_number": "1994",
+      "std_part": "-1-1",
+      "std_parts": [
+        "1",
+        "1"
+      ],
+      "std_code_full": "1994-1-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2004,
+      "amendment": "AC:2009",
+      "suffix": "AC:2009",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 1.0,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1,
+        "suffix": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCCS 37:2022/TCĐBVN",
+    "expected": {
+      "raw_code": "TCCS 37:2022/TCĐBVN",
+      "normalized_code": "TCCS 37:2022/TCĐBVN",
+      "org_prefix": "TCCS",
+      "org_normalized": "TCCS",
+      "org_confidence": 1.0,
+      "series_number": "37",
+      "series_letter": null,
+      "std_main_number": "37",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "37",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2022,
+      "amendment": null,
+      "suffix": "TCĐBVN",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "suffix": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "ISO 231123-1/AC:2009",
+    "expected": {
+      "raw_code": "ISO 231123-1/AC:2009",
+      "normalized_code": "ISO 231123-1/AC:2009",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "231123",
+      "series_letter": null,
+      "std_main_number": "231123",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "231123-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": "AC:2009",
+      "suffix": "AC:2009",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.7,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1,
+        "suffix": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ISO 9001:2015/AMD1:2016",
+    "expected": {
+      "raw_code": "ISO 9001:2015/AMD1:2016",
+      "normalized_code": "ISO 9001:2015/AMD1:2016",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": "AMD1:2016",
+      "suffix": "AMD1:2016",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "suffix": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "ISO 9001:2015/Amd 1:2016",
+    "expected": {
+      "raw_code": "ISO 9001:2015/Amd 1:2016",
+      "normalized_code": "ISO 9001:2015/Amd 1:2016",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    },
+    "divergence": {
+      "reason": "TS nhận dạng amendment/corrigendum có hoặc không khoảng trắng (Amd/Cor) và chuẩn hóa về dạng gọn; Python bỏ suffix nhiều từ nên mất amendment. Chủ ý khác Python theo quyết định 2026-11-23.",
+      "ts_fields": {
+        "suffix": "AMD1:2016",
+        "amendment": "AMD1:2016",
+        "confidence_score": 0.9,
+        "confidence_breakdown": {
+          "org": 0.2,
+          "main": 0.3,
+          "year": 0.3,
+          "suffix": 0.1
+        },
+        "verified": true
+      }
+    }
+  },
+  {
+    "input": "ISO 9001:2015/Cor 1:2019",
+    "expected": {
+      "raw_code": "ISO 9001:2015/Cor 1:2019",
+      "normalized_code": "ISO 9001:2015/Cor 1:2019",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    },
+    "divergence": {
+      "reason": "TS nhận dạng amendment/corrigendum có hoặc không khoảng trắng (Amd/Cor) và chuẩn hóa về dạng gọn; Python bỏ suffix nhiều từ nên mất amendment. Chủ ý khác Python theo quyết định 2026-11-23.",
+      "ts_fields": {
+        "suffix": "COR1:2019",
+        "amendment": "COR1:2019",
+        "confidence_score": 0.9,
+        "confidence_breakdown": {
+          "org": 0.2,
+          "main": 0.3,
+          "year": 0.3,
+          "suffix": 0.1
+        },
+        "verified": true
+      }
+    }
+  },
+  {
+    "input": "ISO 9001:2015/COR1:2019",
+    "expected": {
+      "raw_code": "ISO 9001:2015/COR1:2019",
+      "normalized_code": "ISO 9001:2015/COR1:2019",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "9001",
+      "series_letter": null,
+      "std_main_number": "9001",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9001",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2015,
+      "amendment": null,
+      "suffix": "COR1:2019",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "suffix": 0.1
+      },
+      "verified": true
+    },
+    "divergence": {
+      "reason": "TS nhận dạng COR là corrigendum; regex amendment của Python không có COR nên amendment=null. Chủ ý khác Python theo quyết định 2026-11-23.",
+      "ts_fields": {
+        "amendment": "COR1:2019"
+      }
+    }
+  },
+  {
+    "input": "EN 1994-1-1:2004/Amd 1:2010",
+    "expected": {
+      "raw_code": "EN 1994-1-1:2004/Amd 1:2010",
+      "normalized_code": "EN 1994-1-1:2004/Amd 1:2010",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1994",
+      "series_letter": null,
+      "std_main_number": "1994",
+      "std_part": "-1-1",
+      "std_parts": [
+        "1",
+        "1"
+      ],
+      "std_code_full": "1994-1-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2004,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    },
+    "divergence": {
+      "reason": "TS nhận dạng amendment/corrigendum có hoặc không khoảng trắng (Amd/Cor) và chuẩn hóa về dạng gọn; Python bỏ suffix nhiều từ nên mất amendment. Chủ ý khác Python theo quyết định 2026-11-23.",
+      "ts_fields": {
+        "suffix": "AMD1:2010",
+        "amendment": "AMD1:2010",
+        "confidence_score": 1.0,
+        "confidence_breakdown": {
+          "org": 0.2,
+          "main": 0.3,
+          "year": 0.3,
+          "parts": 0.1,
+          "suffix": 0.1
+        },
+        "verified": true
+      }
+    }
+  },
+  {
+    "input": "EN 1994-1-1:2004+A1:2010",
+    "expected": {
+      "raw_code": "EN 1994-1-1:2004+A1:2010",
+      "normalized_code": "EN 1994-1-1:2004+A1:2010",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1994",
+      "series_letter": null,
+      "std_main_number": "1994",
+      "std_part": "-1-1",
+      "std_parts": [
+        "1",
+        "1"
+      ],
+      "std_code_full": "1994-1-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2004,
+      "amendment": "A1:2010",
+      "suffix": "+A1:2010",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 1.0,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1,
+        "suffix": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "IEC 60850/2007-02",
+    "expected": {
+      "raw_code": "IEC 60850/2007-02",
+      "normalized_code": "IEC 60850/2007-02",
+      "org_prefix": "IEC",
+      "org_normalized": "IEC",
+      "org_confidence": 1.0,
+      "series_number": "60850",
+      "series_letter": null,
+      "std_main_number": "60850",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "60850",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2007,
+      "amendment": null,
+      "suffix": "-02",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "suffix": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN 50122-1-2011",
+    "expected": {
+      "raw_code": "EN 50122-1-2011",
+      "normalized_code": "EN 50122-1-2011",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "50122",
+      "series_letter": null,
+      "std_main_number": "50122",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "50122-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2011,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "GB 50157-2003",
+    "expected": {
+      "raw_code": "GB 50157-2003",
+      "normalized_code": "GB 50157-2003",
+      "org_prefix": "GB",
+      "org_normalized": "GB",
+      "org_confidence": 1.0,
+      "series_number": "50157",
+      "series_letter": null,
+      "std_main_number": "50157",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "50157",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2003,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN 1337-1/2011",
+    "expected": {
+      "raw_code": "EN 1337-1/2011",
+      "normalized_code": "EN 1337-1/2011",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1337",
+      "series_letter": null,
+      "std_main_number": "1337",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "1337-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2011,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN 50172/2004",
+    "expected": {
+      "raw_code": "EN 50172/2004",
+      "normalized_code": "EN 50172/2004",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "50172",
+      "series_letter": null,
+      "std_main_number": "50172",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "50172",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2004,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 1234-1 2013",
+    "expected": {
+      "raw_code": "TCVN 1234-1 2013",
+      "normalized_code": "TCVN 1234-1 2013",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "1234-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2013,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13695 (BS EN 13146-1 đến 10:2019)",
+    "expected": {
+      "raw_code": "TCVN 13695 (BS EN 13146-1 đến 10:2019)",
+      "normalized_code": "TCVN 13695 (BS EN 13146-1 đến 10:2019)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13695",
+      "series_letter": null,
+      "std_main_number": "13695",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "13695",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "BS EN 13146-1 đến 10:2019",
+      "equivalent_text": "BS EN 13146-1 đến 10:2019",
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "TCVN 13695-1:2023 (BS EN 13146-1:2019)",
+    "expected": {
+      "raw_code": "TCVN 13695-1:2023 (BS EN 13146-1:2019)",
+      "normalized_code": "TCVN 13695-1:2023 (BS EN 13146-1:2019)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13695",
+      "series_letter": null,
+      "std_main_number": "13695",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "13695-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2023,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "BS EN 13146-1:2019",
+      "equivalent_text": "BS EN 13146-1:2019",
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 9386-1:2012 (ISO 3010:2001)",
+    "expected": {
+      "raw_code": "TCVN 9386-1:2012 (ISO 3010:2001)",
+      "normalized_code": "TCVN 9386-1:2012 (ISO 3010:2001)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9386",
+      "series_letter": null,
+      "std_main_number": "9386",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "9386-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2012,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "ISO 3010:2001",
+      "equivalent_text": "ISO 3010:2001",
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13695-1:2023 (BS EN 13146-1:2019",
+    "expected": {
+      "raw_code": "TCVN 13695-1:2023 (BS EN 13146-1:2019",
+      "normalized_code": "TCVN 13695-1:2023 (BS EN 13146-1:2019",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13695",
+      "series_letter": null,
+      "std_main_number": "13695",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "13695-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2023,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "BS EN 13146-1:2019",
+      "equivalent_text": "BS EN 13146-1:2019",
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "JIS E 1102",
+    "expected": {
+      "raw_code": "JIS E 1102",
+      "normalized_code": "JIS E 1102",
+      "org_prefix": "JIS E",
+      "org_normalized": "JIS",
+      "org_confidence": 1.0,
+      "series_number": "1102",
+      "series_letter": "E",
+      "std_main_number": "1102",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1102",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ASTM D 4719-07",
+    "expected": {
+      "raw_code": "ASTM D 4719-07",
+      "normalized_code": "ASTM D 4719-07",
+      "org_prefix": "ASTM D",
+      "org_normalized": "ASTM",
+      "org_confidence": 1.0,
+      "series_number": "4719",
+      "series_letter": "D",
+      "std_main_number": "4719",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "4719",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2007,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "AASHTO T27-99",
+    "expected": {
+      "raw_code": "AASHTO T27-99",
+      "normalized_code": "AASHTO T27-99",
+      "org_prefix": "AASHTO T",
+      "org_normalized": "AASHTO",
+      "org_confidence": 1.0,
+      "series_number": "27",
+      "series_letter": "T",
+      "std_main_number": "27",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "27",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 1999,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "GBJ 22-87",
+    "expected": {
+      "raw_code": "GBJ 22-87",
+      "normalized_code": "GBJ 22-87",
+      "org_prefix": "GBJ",
+      "org_normalized": "GB",
+      "org_confidence": 1.0,
+      "series_number": "22",
+      "series_letter": "J",
+      "std_main_number": "22",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "22",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 1987,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "JIS B8009-12",
+    "expected": {
+      "raw_code": "JIS B8009-12",
+      "normalized_code": "JIS B8009-12",
+      "org_prefix": "JIS B",
+      "org_normalized": "JIS",
+      "org_confidence": 1.0,
+      "series_number": "8009",
+      "series_letter": "B",
+      "std_main_number": "8009",
+      "std_part": "-12",
+      "std_parts": [
+        "12"
+      ],
+      "std_code_full": "8009-12",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "IEEE 802.11",
+    "expected": {
+      "raw_code": "IEEE 802.11",
+      "normalized_code": "IEEE 802.11",
+      "org_prefix": "IEEE",
+      "org_normalized": "IEEE",
+      "org_confidence": 1.0,
+      "series_number": "802.11",
+      "series_letter": null,
+      "std_main_number": "802.11",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "802.11",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ASME B1.20.7",
+    "expected": {
+      "raw_code": "ASME B1.20.7",
+      "normalized_code": "ASME B1.20.7",
+      "org_prefix": "ASME B",
+      "org_normalized": "ASME",
+      "org_confidence": 1.0,
+      "series_number": "1.20.7",
+      "series_letter": "B",
+      "std_main_number": "1.20.7",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1.20.7",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "IEC62278:2002",
+    "expected": {
+      "raw_code": "IEC62278:2002",
+      "normalized_code": "IEC62278:2002",
+      "org_prefix": "IEC",
+      "org_normalized": "IEC",
+      "org_confidence": 1.0,
+      "series_number": "62278",
+      "series_letter": null,
+      "std_main_number": "62278",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "62278",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2002,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "JISC1731-2",
+    "expected": {
+      "raw_code": "JISC1731-2",
+      "normalized_code": "JISC1731-2",
+      "org_prefix": "JISC",
+      "org_normalized": "JIS",
+      "org_confidence": 1.0,
+      "series_number": "1731",
+      "series_letter": "C",
+      "std_main_number": "1731",
+      "std_part": "-2",
+      "std_parts": [
+        "2"
+      ],
+      "std_code_full": "1731-2",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ASTM C172-04",
+    "expected": {
+      "raw_code": "ASTM C172-04",
+      "normalized_code": "ASTM C172-04",
+      "org_prefix": "ASTM C",
+      "org_normalized": "ASTM",
+      "org_confidence": 1.0,
+      "series_number": "172",
+      "series_letter": "C",
+      "std_main_number": "172",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "172",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2004,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN 301489-18",
+    "expected": {
+      "raw_code": "EN 301489-18",
+      "normalized_code": "EN 301489-18",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "301489",
+      "series_letter": null,
+      "std_main_number": "301489",
+      "std_part": "-18",
+      "std_parts": [
+        "18"
+      ],
+      "std_code_full": "301489-18",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "Ulc 779-9",
+    "expected": {
+      "raw_code": "Ulc 779-9",
+      "normalized_code": "Ulc 779-9",
+      "org_prefix": "ULC",
+      "org_normalized": "ULC",
+      "org_confidence": 1.0,
+      "series_number": "779",
+      "series_letter": null,
+      "std_main_number": "779",
+      "std_part": "-9",
+      "std_parts": [
+        "9"
+      ],
+      "std_code_full": "779-9",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "TCVN 4756",
+    "expected": {
+      "raw_code": "TCVN 4756",
+      "normalized_code": "TCVN 4756",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "4756",
+      "series_letter": null,
+      "std_main_number": "4756",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "4756",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "EN 50129",
+    "expected": {
+      "raw_code": "EN 50129",
+      "normalized_code": "EN 50129",
+      "org_prefix": "EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "50129",
+      "series_letter": null,
+      "std_main_number": "50129",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "50129",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "IEC 60529",
+    "expected": {
+      "raw_code": "IEC 60529",
+      "normalized_code": "IEC 60529",
+      "org_prefix": "IEC",
+      "org_normalized": "IEC",
+      "org_confidence": 1.0,
+      "series_number": "60529",
+      "series_letter": null,
+      "std_main_number": "60529",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "60529",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ISO 231123-1:1231",
+    "expected": {
+      "raw_code": "ISO 231123-1:1231",
+      "normalized_code": "ISO 231123-1:1231",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "231123",
+      "series_letter": null,
+      "std_main_number": "231123",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "231123-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ISO 231123-1/1231",
+    "expected": {
+      "raw_code": "ISO 231123-1/1231",
+      "normalized_code": "ISO 231123-1/1231",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "231123",
+      "series_letter": null,
+      "std_main_number": "231123",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "231123-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "ISO 231123-1:1231/AC:2009",
+    "expected": {
+      "raw_code": "ISO 231123-1:1231/AC:2009",
+      "normalized_code": "ISO 231123-1:1231/AC:2009",
+      "org_prefix": "ISO",
+      "org_normalized": "ISO",
+      "org_confidence": 1.0,
+      "series_number": "231123",
+      "series_letter": null,
+      "std_main_number": "231123",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "231123-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": "AC:2009",
+      "suffix": "AC:2009",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.7,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "parts": 0.1,
+        "suffix": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "TCVN 1234 1231",
+    "expected": {
+      "raw_code": "TCVN 1234 1231",
+      "normalized_code": "TCVN 1234 1231",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1234",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "TCVN 1234 12",
+    "expected": {
+      "raw_code": "TCVN 1234 12",
+      "normalized_code": "TCVN 1234 12",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1234",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": "12",
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.6,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "suffix": 0.1
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "TCVN 9143:1800",
+    "expected": {
+      "raw_code": "TCVN 9143:1800",
+      "normalized_code": "TCVN 9143:1800",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9143",
+      "series_letter": null,
+      "std_main_number": "9143",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "9143",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.5,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "XYZ 999:1800",
+    "expected": {
+      "raw_code": "XYZ 999:1800",
+      "normalized_code": "XYZ 999:1800",
+      "org_prefix": "XYZ",
+      "org_normalized": "XYZ",
+      "org_confidence": 0.7,
+      "series_number": "999",
+      "series_letter": null,
+      "std_main_number": "999",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "999",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.44,
+      "confidence_breakdown": {
+        "org": 0.14,
+        "main": 0.3
+      },
+      "verified": false
+    }
+  },
+  {
+    "input": "TCVN 1234:2020 (rev 1)",
+    "expected": {
+      "raw_code": "TCVN 1234:2020 (rev 1)",
+      "normalized_code": "TCVN 1234:2020 (rev 1)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1234",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "rev 1",
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566 (2019)",
+    "expected": {
+      "raw_code": "TCVN 13566 (2019)",
+      "normalized_code": "TCVN 13566 (2019)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "13566",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2019,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "2019",
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 13566:2020 (2019)",
+    "expected": {
+      "raw_code": "TCVN 13566:2020 (2019)",
+      "normalized_code": "TCVN 13566:2020 (2019)",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "13566",
+      "series_letter": null,
+      "std_main_number": "13566",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "13566",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": "2019",
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN  9366-1: 2012",
+    "expected": {
+      "raw_code": "TCVN  9366-1: 2012",
+      "normalized_code": "TCVN 9366-1:2012",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "9366",
+      "series_letter": null,
+      "std_main_number": "9366",
+      "std_part": "-1",
+      "std_parts": [
+        "1"
+      ],
+      "std_code_full": "9366-1",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2012,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "TCVN 7161-\n13:2024",
+    "expected": {
+      "raw_code": "TCVN 7161-\n13:2024",
+      "normalized_code": "TCVN 7161-13:2024",
+      "org_prefix": "TCVN",
+      "org_normalized": "TCVN",
+      "org_confidence": 1.0,
+      "series_number": "7161",
+      "series_letter": null,
+      "std_main_number": "7161",
+      "std_part": "-13",
+      "std_parts": [
+        "13"
+      ],
+      "std_code_full": "7161-13",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2024,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.9,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3,
+        "parts": 0.1
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "ENEN 1234:2020",
+    "expected": {
+      "raw_code": "ENEN 1234:2020",
+      "normalized_code": "ENEN 1234:2020",
+      "org_prefix": "ENEN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1234",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "EN EN 1234:2020",
+    "expected": {
+      "raw_code": "EN EN 1234:2020",
+      "normalized_code": "EN EN 1234:2020",
+      "org_prefix": "EN EN",
+      "org_normalized": "EN",
+      "org_confidence": 1.0,
+      "series_number": "1234",
+      "series_letter": null,
+      "std_main_number": "1234",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "1234",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "IEEE Std 802.11:2020",
+    "expected": {
+      "raw_code": "IEEE Std 802.11:2020",
+      "normalized_code": "IEEE Std 802.11:2020",
+      "org_prefix": "IEEE STD",
+      "org_normalized": "IEEE",
+      "org_confidence": 1.0,
+      "series_number": "802.11",
+      "series_letter": null,
+      "std_main_number": "802.11",
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": "802.11",
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": 2020,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.8,
+      "confidence_breakdown": {
+        "org": 0.2,
+        "main": 0.3,
+        "year": 0.3
+      },
+      "verified": true
+    }
+  },
+  {
+    "input": "",
+    "expected": {
+      "raw_code": "",
+      "normalized_code": "",
+      "org_prefix": null,
+      "org_normalized": null,
+      "org_confidence": 0.0,
+      "series_number": null,
+      "series_letter": null,
+      "std_main_number": null,
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": null,
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.0,
+      "confidence_breakdown": {},
+      "verified": false
+    }
+  },
+  {
+    "input": "abc",
+    "expected": {
+      "raw_code": "abc",
+      "normalized_code": "abc",
+      "org_prefix": null,
+      "org_normalized": null,
+      "org_confidence": 0.0,
+      "series_number": null,
+      "series_letter": null,
+      "std_main_number": null,
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": null,
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.0,
+      "confidence_breakdown": {},
+      "verified": false
+    }
+  },
+  {
+    "input": "12345",
+    "expected": {
+      "raw_code": "12345",
+      "normalized_code": "12345",
+      "org_prefix": null,
+      "org_normalized": null,
+      "org_confidence": 0.0,
+      "series_number": null,
+      "series_letter": null,
+      "std_main_number": null,
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": null,
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.0,
+      "confidence_breakdown": {},
+      "verified": false
+    }
+  },
+  {
+    "input": "TCVN",
+    "expected": {
+      "raw_code": "TCVN",
+      "normalized_code": "TCVN",
+      "org_prefix": null,
+      "org_normalized": null,
+      "org_confidence": 0.0,
+      "series_number": null,
+      "series_letter": null,
+      "std_main_number": null,
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": null,
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.0,
+      "confidence_breakdown": {},
+      "verified": false
+    }
+  },
+  {
+    "input": "???",
+    "expected": {
+      "raw_code": "???",
+      "normalized_code": "???",
+      "org_prefix": null,
+      "org_normalized": null,
+      "org_confidence": 0.0,
+      "series_number": null,
+      "series_letter": null,
+      "std_main_number": null,
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": null,
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.0,
+      "confidence_breakdown": {},
+      "verified": false
+    }
+  },
+  {
+    "input": "INVALID STRING",
+    "expected": {
+      "raw_code": "INVALID STRING",
+      "normalized_code": "INVALID STRING",
+      "org_prefix": null,
+      "org_normalized": null,
+      "org_confidence": 0.0,
+      "series_number": null,
+      "series_letter": null,
+      "std_main_number": null,
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": null,
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.0,
+      "confidence_breakdown": {},
+      "verified": false
+    }
+  },
+  {
+    "input": "XYZ Q",
+    "expected": {
+      "raw_code": "XYZ Q",
+      "normalized_code": "XYZ Q",
+      "org_prefix": null,
+      "org_normalized": null,
+      "org_confidence": 0.0,
+      "series_number": null,
+      "series_letter": null,
+      "std_main_number": null,
+      "std_part": null,
+      "std_parts": [],
+      "std_code_full": null,
+      "parts_kind": null,
+      "expanded_parts": null,
+      "std_year": null,
+      "amendment": null,
+      "suffix": null,
+      "version_text": null,
+      "equivalent_text": null,
+      "confidence_score": 0.0,
+      "confidence_breakdown": {},
+      "verified": false
+    }
+  }
+]

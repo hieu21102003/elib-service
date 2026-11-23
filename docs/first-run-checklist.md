@@ -40,7 +40,7 @@ docker compose exec elib npm run create-admin -- --email admin@congty.vn --passw
 
 ```bash
 npm run build && npm start          # hoặc: docker compose up -d
-curl http://127.0.0.1:3200/health   # kỳ vọng: {"status":"ok",...}
+docker compose exec elib wget -qO- http://127.0.0.1:3200/health   # kỳ vọng: {"status":"ok",...}
 ```
 
 - [ ] `/health` trả 200
@@ -87,5 +87,5 @@ curl http://127.0.0.1:3200/health   # kỳ vọng: {"status":"ok",...}
       (code hiện chỉ ở `~/workspace/elib-service/`, chưa có git/repo — server
       chưa `git clone` được), hoặc Giai đoạn 2
 
-> elib nên chỉ nghe `127.0.0.1:3200`, người dùng vào qua Reverse_proxy/nginx.
+> elib không publish cổng ra host (chỉ nghe trong mạng Docker `elib-net`), người dùng vào qua Reverse_proxy/nginx.
 > Đừng mở cổng 3200 ra Internet.
