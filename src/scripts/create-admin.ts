@@ -39,13 +39,13 @@ try {
       process.exit(1);
     }
     await pool.query(
-      "UPDATE users SET password_hash = $1, role = 'admin', display_name = COALESCE($2, display_name), updated_at = now() WHERE id = $3",
+      "UPDATE users SET password_hash = $1, role = 'admin', status = 'active', user_type = 'internal', display_name = COALESCE($2, display_name), updated_at = now() WHERE id = $3",
       [passwordHash, displayName, existing.rows[0].id]
     );
     console.log(`Đã cập nhật tài khoản admin: ${email}`);
   } else {
     await pool.query(
-      "INSERT INTO users (email, password_hash, role, display_name) VALUES ($1,$2,'admin',$3)",
+      "INSERT INTO users (email, password_hash, role, display_name, status, user_type) VALUES ($1,$2,'admin',$3,'active','internal')",
       [email, passwordHash, displayName]
     );
     console.log(`Đã tạo tài khoản admin: ${email}`);

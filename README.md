@@ -93,9 +93,14 @@ Lưu ý vận hành:
 | Method | Đường dẫn | Quyền | Mô tả |
 | --- | --- | --- | --- |
 | GET | `/health` | công khai | Kiểm tra dịch vụ |
-| POST | `/api/auth/login` | công khai | Đăng nhập (JSON `{email, password}`), đặt cookie session httpOnly |
+| POST | `/api/auth/login` | công khai | Đăng nhập (JSON `{identifier, password}` — identifier là email hoặc username; vẫn chấp nhận `{email, password}`), đặt cookie session httpOnly. Sai quá số lần theo (định danh+IP) sẽ bị khóa tạm |
+| POST | `/api/auth/register` | công khai | Tự đăng ký tài khoản (chờ admin duyệt, không tự đăng nhập) — xem mục "Đăng ký & duyệt tài khoản" |
+| POST | `/api/auth/change-password` | đã đăng nhập | Đổi mật khẩu (bắt buộc sau khi admin đặt lại mật khẩu tạm) |
 | POST | `/api/auth/logout` | đã đăng nhập | Đăng xuất, xóa session |
-| GET | `/api/auth/me` | đã đăng nhập | Thông tin người dùng hiện tại |
+| GET | `/api/auth/me` | đã đăng nhập | Thông tin người dùng hiện tại (gồm `userType`, `status`, `mustChangePassword`) |
+| GET | `/api/admin/users` | admin | Liệt kê người dùng theo `?status=` + số chờ duyệt |
+| POST | `/api/admin/users/:id/approve` · `/reject` · `/bulk-reject` · `/reset-password` · `/unlock` | admin | Duyệt (kèm `user_type`) / từ chối (kèm lý do) / từ chối hàng loạt / đặt lại mật khẩu tạm / mở khóa đăng nhập |
+| PATCH | `/api/admin/users/:id` | admin | Đổi role/user_type/status (có rào chắn: không tự hạ role/vô hiệu hóa chính mình, không động vào admin cuối cùng, editor chỉ cho internal) |
 | GET | `/api/categories` | công khai | Cây danh mục cho dropdown |
 | GET | `/api/documents` | theo ma trận dưới | Danh sách + tìm kiếm tài liệu (lọc quyền ngay trong SQL) — xem mục "Danh sách & tìm kiếm tài liệu" |
 | POST | `/api/documents` | admin/editor | Upload 1 file (multipart) + metadata: `title*`, `description`, `category_id`, `tags` (cách nhau bằng dấu phẩy, tự tạo nếu chưa có), `doc_type`, `language`, `visibility`, `status`, `force` |
@@ -107,16 +112,24 @@ Lỗi trả dạng `{ "error": { "code": "...", "message": "<tiếng Việt>" } 
 
 ### Ma trận quyền tải file
 
-| Trạng thái / Hiển thị | Chưa đăng nhập | viewer | editor | admin | Người tạo |
-| --- | --- | --- | --- | --- | --- |
-| published + public | ✔ | ✔ | ✔ | ✔ | ✔ |
-| published + internal | ✘ | ✔ | ✔ | ✔ | ✔ |
-| published + private | ✘ | ✘ | ✘* | ✔ | ✔ |
-| draft / hidden (mọi visibility) | ✘ | ✘ | ✔ | ✔ | ✔ |
+| Trạng thái / Hiển thị | Chưa đăng nhập | viewer (internal) | viewer (external) | editor | admin | Người tạo |
+| --- | --- | --- | --- | --- | --- | --- |
+| published + public | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| published + internal | ✘ | ✔ | ✘ | ✔ | ✔ | ✔ |
+| published + private | ✘ | ✘ | ✘ | ✘* | ✔ | ✔ |
+| draft / hidden (mọi visibility) | ✘ | ✘ | ✘ | ✔ | ✔ | ✔ |
 
 \* Editor không phải người tạo không tải được tài liệu `private` đã xuất bản (theo đúng quy tắc "người tạo hoặc admin").
 
 Upload: chỉ `admin`/`editor`. `viewer` gọi API upload nhận `403`; trang upload tạm ẩn form với viewer.
+
+### Đăng ký & duyệt tài khoản (Giai đoạn A3)
+
+- Tự đăng ký qua `POST /api/auth/register` (username, mật khẩu 8–128 ký tự + chặn mật khẩu phổ biến, họ tên thật, đơn vị, email bắt buộc + unique không phân biệt hoa thường). Tài khoản mới: `role=viewer`, `status=pending`, `user_type=NULL` — client không gửi được role/status/user_type. Không tự đăng nhập; admin duyệt qua `/api/admin/users/:id/approve` kèm chọn `user_type` (internal/external). Email của tài khoản bị từ chối được giải phóng để đăng ký lại.
+- Tài khoản có trước migration 005: `status=active`, `user_type=internal`. **Trước khi migrate trên server**, liệt kê để kiểm tra: `SELECT username, role, created_at FROM users ORDER BY created_at;` (trước migration chưa có cột `username` thì thay bằng `email`).
+- Bảo vệ: rate limit theo IP cho đăng ký/đăng nhập, khóa tạm theo (định danh+IP) kể cả định danh không tồn tại (xác minh argon2 giả để cân bằng thời gian), honeypot, trần số tài khoản chờ duyệt (`MAX_PENDING_USERS`), kiểm tra Origin (CSRF) cho request đổi trạng thái qua cookie. Mọi request xác thực đều tra lại status/role/user_type từ DB nên vô hiệu hóa/đổi role có hiệu lực ngay.
+- Admin đặt lại mật khẩu: mật khẩu tạm hiện đúng một lần (không ghi vào audit log), người dùng phải đổi ở lần đăng nhập kế tiếp (`must_change_password`).
+- Chưa gửi email tự động (phương án SMTP + nodemailer để làm sau).
 
 ## Danh sách & tìm kiếm tài liệu (GET /api/documents)
 

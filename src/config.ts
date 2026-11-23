@@ -21,6 +21,30 @@ function floatFromEnv(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * TRUST_PROXY: số hop proxy tin cậy phía trước (Fastify trustProxy dạng số).
+ * - Không đặt / 'false' / '0' -> false (không tin X-Forwarded-For).
+ * - 'true' / '1' -> 1 (đúng một lớp Reverse_proxy/Caddy).
+ * - Số nguyên dương khác -> đúng số hop đó.
+ * Giá trị lạ -> false (an toàn: không tin header giả mạo).
+ */
+function trustProxyFromEnv(name: string): boolean | number {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (!raw || raw === 'false' || raw === '0') return false;
+  if (raw === 'true') return 1;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : false;
+}
+
+function listFromEnv(name: string): string[] {
+  const raw = process.env[name];
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0);
+}
+
 export interface AppConfig {
   databaseUrl: string;
   storageRoot: string;
@@ -33,10 +57,28 @@ export interface AppConfig {
   sessionTtlDays: number;
   logLevel: string;
   /**
-   * Tin header X-Forwarded-For khi đứng sau Reverse_proxy/Caddy (ảnh hưởng IP
-   * dùng cho rate limit). Mặc định false; đặt TRUST_PROXY=true khi có proxy tin cậy.
+   * Số hop proxy tin cậy (Fastify trustProxy): chỉ tin X-Forwarded-For từ
+   * đúng số lớp Reverse_proxy/Caddy này (ảnh hưởng IP dùng cho rate limit).
+   * Mặc định false; TRUST_PROXY=true hoặc =1 khi đứng sau đúng một lớp proxy.
    */
-  trustProxy: boolean;
+  trustProxy: boolean | number;
+  /** Trần số tài khoản đang chờ duyệt (MAX_PENDING_USERS, mặc định 200). */
+  maxPendingUsers: number;
+  /** Sai mật khẩu tối đa theo (username+IP) trước khi khóa tạm (LOGIN_MAX_FAILED, mặc định 5). */
+  loginMaxFailed: number;
+  /** Thời gian khóa tạm đăng nhập, phút (LOGIN_LOCK_MINUTES, mặc định 15). */
+  loginLockMinutes: number;
+  /** Rate limit đăng ký theo IP (REGISTER_RATE_MAX / REGISTER_RATE_WINDOW_MINUTES, mặc định 5 / 60 phút). */
+  registerRateMax: number;
+  registerRateWindowMs: number;
+  /** Rate limit đăng nhập theo IP (LOGIN_RATE_MAX / LOGIN_RATE_WINDOW_MINUTES, mặc định 20 / 15 phút). */
+  loginRateMax: number;
+  loginRateWindowMs: number;
+  /**
+   * Danh sách tên miền email nội bộ (INTERNAL_EMAIL_DOMAINS, phân cách dấu phẩy).
+   * Chỉ dùng để gợi ý trên trang duyệt của admin — không tự duyệt/tự gán user_type.
+   */
+  internalEmailDomains: string[];
   /**
    * Bí mật dùng chung cho API nội bộ /internal/standards/* (Reverse_proxy
    * gửi qua header X-Internal-Token). Chưa đặt → API nội bộ tắt (503).
@@ -77,7 +119,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     cookieSecure: boolFromEnv('COOKIE_SECURE', false),
     sessionTtlDays: intFromEnv('SESSION_TTL_DAYS', 7),
     logLevel: env.LOG_LEVEL ?? 'info',
-    trustProxy: boolFromEnv('TRUST_PROXY', false),
+    trustProxy: trustProxyFromEnv('TRUST_PROXY'),
+    maxPendingUsers: intFromEnv('MAX_PENDING_USERS', 200),
+    loginMaxFailed: intFromEnv('LOGIN_MAX_FAILED', 5),
+    loginLockMinutes: intFromEnv('LOGIN_LOCK_MINUTES', 15),
+    registerRateMax: intFromEnv('REGISTER_RATE_MAX', 5),
+    registerRateWindowMs: intFromEnv('REGISTER_RATE_WINDOW_MINUTES', 60) * 60 * 1000,
+    loginRateMax: intFromEnv('LOGIN_RATE_MAX', 20),
+    loginRateWindowMs: intFromEnv('LOGIN_RATE_WINDOW_MINUTES', 15) * 60 * 1000,
+    internalEmailDomains: listFromEnv('INTERNAL_EMAIL_DOMAINS'),
     standardsInternalToken: env.STANDARDS_INTERNAL_TOKEN?.trim() || null,
     previewRatio,
     previewMaxPages: intFromEnv('PREVIEW_MAX_PAGES', 10),

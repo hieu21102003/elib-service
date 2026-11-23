@@ -21,7 +21,16 @@ const EDITOR_ID = '33333333-3333-4333-8333-333333333333';
 const ADMIN_ID = '44444444-4444-4444-8444-444444444444';
 
 function makeUser(role: UserRole, id: string): CurrentUser {
-  return { id, email: `${role}-${id.slice(0, 4)}@congty.vn`, role, displayName: null };
+  return {
+    id,
+    username: null,
+    email: `${role}-${id.slice(0, 4)}@congty.vn`,
+    role,
+    displayName: null,
+    userType: 'internal',
+    status: 'active',
+    mustChangePassword: false
+  };
 }
 
 const USERS = {
@@ -58,7 +67,16 @@ class FakePool {
       const user = this.tokens.get(String(params[0]));
       return {
         rows: user
-          ? [{ id: user.id, email: user.email, role: user.role, display_name: user.displayName }]
+          ? [{
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              role: user.role,
+              display_name: user.displayName,
+              status: user.status,
+              user_type: user.userType,
+              must_change_password: user.mustChangePassword
+            }]
           : []
       };
     }
