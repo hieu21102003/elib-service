@@ -735,6 +735,15 @@ describe('Giai đoạn A3 — đăng ký, duyệt, khóa tạm, thu hồi phiên
     );
     expect(match.statusCode).toBe(200);
 
+    // Cổng không mặc định (vd Caddy :8443): Origin có cổng vẫn phải khớp hostname.
+    const matchCustomPort = await post(
+      '/api/auth/login',
+      { identifier: admin.email, password: ADMIN_PASSWORD },
+      undefined,
+      { origin: 'https://localhost:8443' }
+    );
+    expect(matchCustomPort.statusCode).toBe(200);
+
     const cookie = await adminCookie();
     const adminMismatch = await post(
       '/api/admin/users/bulk-reject',

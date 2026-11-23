@@ -87,7 +87,10 @@ export async function createApp(opts: CreateAppOptions = {}) {
     if (!source) return;
     let sourceHost: string | null = null;
     try {
-      sourceHost = new URL(source).host;
+      // Dùng hostname (không kèm cổng): request.hostname của Fastify cũng
+      // không có cổng, trong khi URL.host giữ cổng không mặc định (vd :8443
+      // sau Caddy) khiến so sánh luôn lệch trên cổng tùy chỉnh.
+      sourceHost = new URL(source).hostname;
     } catch {
       sourceHost = null;
     }
