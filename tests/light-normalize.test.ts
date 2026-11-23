@@ -152,6 +152,134 @@ describe('lightNormalizeCode — mã rác / không chuẩn hóa được', () =>
   });
 });
 
+describe('lightNormalizeCode — luật năm gạch ngang (bổ sung 2026-11-23)', () => {
+  it('-YYYY trùng trường year -> :YYYY, hết năm đôi', () => {
+    expect(lightNormalizeCode('GB/T 19001-2016', 2016)?.normalized_code).toBe('GBT19001:2016');
+    expect(lightNormalizeCode('TCVN 9143-2022', 2022)?.normalized_code).toBe('TCVN9143:2022');
+    expect(lightNormalizeCode('EN 50122-1-2011', 2011)?.normalized_code).toBe('EN50122-1:2011');
+    const light = lightNormalizeCode('GB/T 19001-2016', 2016);
+    expect(light?.year).toBe(2016);
+    expect(light?.base_key).toBe('GBT19001');
+    expect(light?.needs_review).toBe(false);
+  });
+
+  it('/YYYY trùng trường year -> :YYYY', () => {
+    expect(lightNormalizeCode('EN 50172/2004', 2004)?.normalized_code).toBe('EN50172:2004');
+    expect(lightNormalizeCode('EN 1337-1/2011', 2011)?.normalized_code).toBe('EN1337-1:2011');
+  });
+
+  it('-YYYY-MM -> :YYYY, tháng bị bỏ khỏi khóa', () => {
+    const light = lightNormalizeCode('ISO 9001-2015-09', 2015);
+    expect(light?.normalized_code).toBe('ISO9001:2015');
+    expect(light?.year).toBe(2015);
+    expect(lightNormalizeCode('IEC 60850/2007-02', 2007)?.normalized_code).toBe('IEC60850:2007');
+  });
+
+  it('-YY chỉ khi khớp hai chữ số cuối của trường year -> :YYYY đủ', () => {
+    expect(lightNormalizeCode('ASTM D 4719-07', 2007)?.normalized_code).toBe('ASTMD4719:2007');
+    expect(lightNormalizeCode('AASHTO T27-99', 1999)?.normalized_code).toBe('AASHTOT27:1999');
+    expect(lightNormalizeCode('GBJ 22-87', 1987)?.normalized_code).toBe('GBJ22:1987');
+  });
+
+  it('-YY không khớp -> giữ nguyên, nối :year như cũ', () => {
+    expect(lightNormalizeCode('ASTM D 4719-07', 2010)?.normalized_code).toBe('ASTMD4719-07:2010');
+  });
+
+  it('-YY sau một "-" khác là phần/chương, không phải năm (EN 1993-1-10)', () => {
+    expect(lightNormalizeCode('EN 1993-1-10', 2010)?.normalized_code).toBe('EN1993-1-10:2010');
+  });
+
+  it('-YYYY không khớp trường year -> giữ nguyên + nối :year + needs_review', () => {
+    const light = lightNormalizeCode('TCVN 9143-2020', 2022);
+    expect(light?.normalized_code).toBe('TCVN9143-2020:2022');
+    expect(light?.year).toBe(2022);
+    expect(light?.needs_review).toBe(true);
+  });
+
+  it('không có trường year -> năm gạch ngang giữ nguyên (14 TCN 58-88)', () => {
+    expect(lightNormalizeCode('14 TCN 58-88')?.normalized_code).toBe('14TCN58-88');
+    expect(lightNormalizeCode('TCVN 9143-2022')?.normalized_code).toBe('TCVN9143-2022');
+    expect(lightNormalizeCode('TCVN 9143-2022')?.year).toBeNull();
+  });
+});
+
+describe('lightNormalizeCode — phân cách nhóm số + needs_review (bổ sung)', () => {
+  it('khoảng trắng giữa hai nhóm số -> giữ "-" + needs_review', () => {
+    const light = lightNormalizeCode('TCVN 1234 12');
+    expect(light?.normalized_code).toBe('TCVN1234-12');
+    expect(light?.needs_review).toBe(true);
+    expect(lightNormalizeCode('TCVN 1234 1231')?.normalized_code).toBe('TCVN1234-1231');
+    expect(lightNormalizeCode('TCVN 1234 1231')?.needs_review).toBe(true);
+  });
+
+  it('mã thường không bị ảnh hưởng', () => {
+    const light = lightNormalizeCode('TCVN 9143:2022');
+    expect(light?.normalized_code).toBe('TCVN9143:2022');
+    expect(light?.needs_review).toBe(false);
+    // "TCVN 1234-1 2013": nhóm số -> "TCVN1234-1-2013", rồi -2013 trùng
+    // trường year -> ":2013"; vẫn needs_review vì đã giữ phân cách.
+    const grouped = lightNormalizeCode('TCVN 1234-1 2013', 2013);
+    expect(grouped?.normalized_code).toBe('TCVN1234-1:2013');
+    expect(grouped?.needs_review).toBe(true);
+  });
+});
+
+describe('lightNormalizeCode — needs_review năm ngoài khoảng + tổ chức lặp đôi', () => {
+  it('năm ngoài [1900, năm hiện tại + 1] -> needs_review, khóa vẫn dựng', () => {
+    expect(lightNormalizeCode('ISO 231123-1:1231')?.needs_review).toBe(true);
+    expect(lightNormalizeCode('ISO 231123-1:1231')?.normalized_code).toBe('ISO231123-1:1231');
+    expect(lightNormalizeCode('TCVN 9143:1800')?.needs_review).toBe(true);
+    expect(lightNormalizeCode('TCVN 9143:2999')?.needs_review).toBe(true);
+    expect(lightNormalizeCode('ISO 9001', 1800)?.needs_review).toBe(true);
+    expect(lightNormalizeCode('TCVN 9143:2022')?.needs_review).toBe(false);
+  });
+
+  it('tổ chức lặp đôi (ENEN / EN EN) -> needs_review, giữ nguyên dạng lặp', () => {
+    const doubled = lightNormalizeCode('ENEN 1234:2020', 2020);
+    expect(doubled?.normalized_code).toBe('ENEN1234:2020');
+    expect(doubled?.needs_review).toBe(true);
+    expect(lightNormalizeCode('EN EN 1234:2020', 2020)?.needs_review).toBe(true);
+    expect(lightNormalizeCode('EN EN 1090')?.needs_review).toBe(true);
+    // Tổ chức thường không bị gắn cờ:
+    expect(lightNormalizeCode('EN ISO 9001:2015')?.needs_review).toBe(false);
+    expect(lightNormalizeCode('TCVN ISO 9001:2015')?.needs_review).toBe(false);
+    expect(lightNormalizeCode('IEEE 802.3:2022')?.needs_review).toBe(false);
+  });
+});
+
+describe('lightNormalizeCode — bỏ qua mã không có hai chữ cái trước phần số', () => {
+  it('chỉ có số / ICS / một chữ cái -> null', () => {
+    expect(lightNormalizeCode('12345')).toBeNull();
+    expect(lightNormalizeCode('93.160')).toBeNull();
+    expect(lightNormalizeCode('T 27')).toBeNull();
+  });
+
+  it('"14 TCN 58-88" vẫn hợp lệ (TCN đứng trước 58)', () => {
+    expect(lightNormalizeCode('14 TCN 58-88')?.normalized_code).toBe('14TCN58-88');
+    expect(lightNormalizeCode('TCVN 4253')?.normalized_code).toBe('TCVN4253');
+  });
+});
+
+describe('lightNormalizeCode — base_key/year từ ":năm" ĐẦU TIÊN', () => {
+  it('EN 1994-1-1:2004+A1:2010 -> base EN1994-1-1, year 2004 (bản chính)', () => {
+    const light = lightNormalizeCode('EN 1994-1-1:2004+A1:2010', 2004);
+    expect(light?.normalized_code).toBe('EN1994-1-1:2004+A1:2010');
+    expect(light?.base_key).toBe('EN1994-1-1');
+    expect(light?.year).toBe(2004);
+    expect(light?.is_amendment).toBe(true);
+    expect(light?.needs_review).toBe(false);
+  });
+
+  it('trường year so với năm ĐẦU TIÊN khi xét lệch', () => {
+    expect(lightNormalizeCode('EN 1994-1-1:2004+A1:2010', 2010)?.needs_review).toBe(true);
+    // Mã thường giữ nguyên hành vi cũ:
+    const plain = lightNormalizeCode('ISO 9001:2015/Amd 1:2016', 2015);
+    expect(plain?.base_key).toBe('ISO9001');
+    expect(plain?.year).toBe(2015);
+    expect(plain?.needs_review).toBe(false);
+  });
+});
+
 describe('splitReplacesParts — replaces của TCVN_QT (mẫu ISO 9001 thật)', () => {
   it('tách "*", lấy năm từ "(YYYY-MM)", corrigendum văn xuôi đánh dấu rawOnly', () => {
     const parts = splitReplacesParts(
