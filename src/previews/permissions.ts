@@ -5,9 +5,10 @@ import { visibleInList } from '../documents/visibility.js';
  * Quyền xem bản xem trước = quyền "thấy tài liệu" theo ma trận hiện có
  * (visibleInList / canDownload):
  * - published + public: mọi người, kể cả chưa đăng nhập.
- * - published + internal: CHỈ người nội bộ (user_type=internal) hoặc editor/admin.
- * - published + private: người tạo hoặc admin.
- * - draft/hidden: người tạo, editor, admin.
+ * - published + members: mọi tài khoản đã đăng nhập và status=active (gồm cả external).
+ * - published + internal: CHỈ người nội bộ (user_type=internal) hoặc editor/admin (status=active).
+ * - published + private: người tạo hoặc admin (status=active).
+ * - draft/hidden: người tạo, editor, admin (status=active).
  */
 export function canPreview(user: CurrentUser | null, doc: DocumentAccessRow): boolean {
   return visibleInList(user, doc);

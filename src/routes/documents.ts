@@ -26,7 +26,7 @@ const metadataSchema = z.object({
   tags: z.string().optional().default(''),
   doc_type: z.string().trim().max(100).optional().default(''),
   language: z.string().trim().max(50).optional().default(''),
-  visibility: z.enum(['public', 'internal', 'private']).default('internal'),
+  visibility: z.enum(['public', 'members', 'internal', 'private']).default('internal'),
   status: z.enum(['draft', 'published', 'hidden']).default('draft'),
   force: z
     .union([z.boolean(), z.string()])
@@ -106,7 +106,7 @@ function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
 }
 
 const patchVisibilitySchema = z.object({
-  visibility: z.enum(['public', 'internal', 'private'])
+  visibility: z.enum(['public', 'members', 'internal', 'private'])
 });
 
 function parseTags(raw: string): string[] {
@@ -416,7 +416,7 @@ export function registerDocumentRoutes(
     if (!parsed.success) {
       throw badRequest(
         'INVALID_VISIBILITY',
-        'Mức hiển thị không hợp lệ. Chỉ chấp nhận: public, internal, private.'
+        'Mức hiển thị không hợp lệ. Chỉ chấp nhận: public, members, internal, private.'
       );
     }
     const newVisibility = parsed.data.visibility;

@@ -5,6 +5,8 @@ dist
 !.env.example
 storage
 *.log
+spikes
+*.pdf
 .git
 .gitignore
 Dockerfile

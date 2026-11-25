@@ -20,7 +20,12 @@ import { loadConfig } from '../src/config.js';
 const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_ID = '22222222-2222-4222-8222-222222222222';
 
-function makeUser(role: UserRole, id = OWNER_ID, userType: CurrentUser['userType'] = 'internal'): CurrentUser {
+function makeUser(
+  role: UserRole,
+  id = OWNER_ID,
+  userType: CurrentUser['userType'] = 'internal',
+  status: CurrentUser['status'] = 'active'
+): CurrentUser {
   return {
     id,
     username: null,
@@ -28,7 +33,7 @@ function makeUser(role: UserRole, id = OWNER_ID, userType: CurrentUser['userType
     role,
     displayName: null,
     userType,
-    status: 'active',
+    status,
     mustChangePassword: false
   };
 }
@@ -40,10 +45,10 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
     { label: 'editor', user: makeUser('editor') },
     { label: 'admin', user: makeUser('admin') }
   ];
-  const visibilities = ['public', 'internal', 'private'];
+  const visibilities = ['public', 'members', 'internal', 'private'];
   const statuses = ['published', 'draft', 'hidden'];
 
-  it('đối chiếu đủ 72 tổ hợp: 4 vai trò × người tạo/không phải × 3 visibility × 3 status', () => {
+  it('đối chiếu đủ 96 tổ hợp: 4 vai trò × người tạo/không phải × 4 visibility × 3 status', () => {
     let combos = 0;
     for (const { label, user } of users) {
       for (const isOwner of [true, false]) {
@@ -63,7 +68,7 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
         }
       }
     }
-    expect(combos).toBe(72);
+    expect(combos).toBe(96);
   });
 
   it('đối chiếu thêm chiều user_type: external/NULL vẫn khớp canDownload ở mọi tổ hợp', () => {
@@ -92,8 +97,37 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
     }
   });
 
-  it('các ô tiêu biểu của ma trận', () => {
+  it('tài khoản status khác active (pending/disabled/rejected) chỉ thấy published+public, không thấy members/internal/private/draft/hidden', () => {
+    const inactiveStatuses: Array<CurrentUser['status']> = ['pending', 'disabled', 'rejected'];
+    for (const st of inactiveStatuses) {
+      for (const role of ['viewer', 'editor', 'admin'] as const) {
+        const user = makeUser(role, OWNER_ID, 'internal', st);
+        expect(visibleDocumentsWhere(user).params).toEqual([null, null, null]);
+        for (const isOwner of [true, false]) {
+          for (const visibility of visibilities) {
+            for (const status of statuses) {
+              const doc: DocumentAccessRow = {
+                status,
+                visibility,
+                created_by: isOwner ? OWNER_ID : OTHER_ID
+              };
+              const expected = status === 'published' && visibility === 'public';
+              expect(
+                visibleInList(user, doc),
+                `status=${st} / ${role} / ${isOwner ? 'owner' : 'other'} / ${status}+${visibility}`
+              ).toBe(expected);
+              expect(canDownload(user, doc)).toBe(expected);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('các ô tiêu biểu của ma trận (gồm chiều members)', () => {
     const viewer = makeUser('viewer');
+    const externalViewer = makeUser('viewer', OWNER_ID, 'external');
+    const unassignedViewer = makeUser('viewer', OWNER_ID, null);
     const editor = makeUser('editor');
     const admin = makeUser('admin');
     const doc = (status: string, visibility: string, created_by: string): DocumentAccessRow => ({
@@ -103,14 +137,27 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
     });
     // published + public: mọi người
     expect(visibleInList(null, doc('published', 'public', OTHER_ID))).toBe(true);
+    // published + members: mọi tài khoản đã đăng nhập & status=active (gồm external, internal, editor, chủ, admin); chưa đăng nhập -> false
+    expect(visibleInList(null, doc('published', 'members', OTHER_ID))).toBe(false);
+    expect(visibleInList(externalViewer, doc('published', 'members', OTHER_ID))).toBe(true);
+    expect(visibleInList(viewer, doc('published', 'members', OTHER_ID))).toBe(true);
+    expect(visibleInList(unassignedViewer, doc('published', 'members', OTHER_ID))).toBe(true);
+    expect(visibleInList(editor, doc('published', 'members', OTHER_ID))).toBe(true);
+    expect(visibleInList(makeUser('viewer', OWNER_ID, 'external'), doc('published', 'members', OWNER_ID))).toBe(true);
+    expect(visibleInList(admin, doc('published', 'members', OTHER_ID))).toBe(true);
+    expect(visibleInList(makeUser('viewer', OTHER_ID, 'external', 'pending'), doc('published', 'members', OTHER_ID))).toBe(false);
+    expect(visibleInList(makeUser('viewer', OTHER_ID, 'external', 'disabled'), doc('published', 'members', OTHER_ID))).toBe(false);
+    // draft/hidden + members: viewer không thấy (trừ chủ), editor/admin thấy
+    expect(visibleInList(externalViewer, doc('draft', 'members', OTHER_ID))).toBe(false);
+    expect(visibleInList(viewer, doc('hidden', 'members', OTHER_ID))).toBe(false);
+    expect(visibleInList(editor, doc('draft', 'members', OTHER_ID))).toBe(true);
+    expect(visibleInList(admin, doc('hidden', 'members', OTHER_ID))).toBe(true);
     // published + internal: chỉ người nội bộ hoặc editor/admin
     expect(visibleInList(null, doc('published', 'internal', OTHER_ID))).toBe(false);
     expect(visibleInList(viewer, doc('published', 'internal', OTHER_ID))).toBe(true);
-    const externalViewer = makeUser('viewer', OWNER_ID, 'external');
     expect(visibleInList(externalViewer, doc('published', 'internal', OTHER_ID))).toBe(false);
     expect(canDownload(externalViewer, doc('published', 'internal', OTHER_ID))).toBe(false);
     expect(visibleInList(externalViewer, doc('published', 'public', OTHER_ID))).toBe(true);
-    const unassignedViewer = makeUser('viewer', OWNER_ID, null);
     expect(visibleInList(unassignedViewer, doc('published', 'internal', OTHER_ID))).toBe(false);
     // editor/admin vẫn thấy internal dù user_type external (role quyết định)
     expect(visibleInList(makeUser('editor', OWNER_ID, 'external'), doc('published', 'internal', OTHER_ID))).toBe(true);
@@ -129,10 +176,11 @@ describe('ma trận quyền danh sách — visibleInList phải khớp canDownlo
 });
 
 describe('visibleDocumentsWhere — mảnh SQL lọc quyền', () => {
-  it('chưa đăng nhập: params [null, null, null], SQL chứa đủ 4 mệnh đề', () => {
+  it('chưa đăng nhập: params [null, null, null], SQL chứa đủ 5 mệnh đề', () => {
     const frag = visibleDocumentsWhere(null);
     expect(frag.params).toEqual([null, null, null]);
     expect(frag.sql).toContain("d.status = 'published' AND d.visibility = 'public'");
+    expect(frag.sql).toContain("d.status = 'published' AND d.visibility = 'members' AND $1::uuid IS NOT NULL");
     expect(frag.sql).toContain("d.visibility = 'internal' AND $1::uuid IS NOT NULL AND ($3::text = 'internal' OR $2::text IN ('editor', 'admin'))");
     expect(frag.sql).toContain("d.visibility = 'private' AND ($1::uuid = d.created_by OR $2::text = 'admin')");
     expect(frag.sql).toContain("d.status IN ('draft', 'hidden') AND ($1::uuid = d.created_by OR $2::text IN ('editor', 'admin'))");

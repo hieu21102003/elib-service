@@ -99,6 +99,8 @@ export interface AppConfig {
   previewFileTimeoutMs: number;
   /** Bật job nền tạo bản xem trước trong server (PREVIEW_JOB_ENABLED, mặc định true). */
   previewJobEnabled: boolean;
+  /** Đường dẫn binary qpdf để xử lý PDF mã hóa có user password rỗng (QPDF_PATH, mặc định 'qpdf'). */
+  qpdfPath: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -135,7 +137,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     previewJobIntervalMs: intFromEnv('PREVIEW_JOB_INTERVAL_MS', 5000),
     previewLockStaleMinutes: intFromEnv('PREVIEW_LOCK_STALE_MINUTES', 15),
     previewFileTimeoutMs: intFromEnv('PREVIEW_FILE_TIMEOUT_MS', 60000),
-    previewJobEnabled: boolFromEnv('PREVIEW_JOB_ENABLED', true)
+    previewJobEnabled: boolFromEnv('PREVIEW_JOB_ENABLED', true),
+    qpdfPath: env.QPDF_PATH?.trim() || 'qpdf'
   };
 }
 

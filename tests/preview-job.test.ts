@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFArray, PDFDocument, PDFName, PDFRawStream, StandardFonts, decodePDFRawStream } from 'pdf-lib';
 import { loadConfig, type AppConfig } from '../src/config.js';
 import { LocalDiskStorage } from '../src/storage/local-disk.js';
 import {
@@ -15,10 +16,16 @@ import {
   type PreviewFileRow
 } from '../src/previews/job.js';
 import { runBackfill } from '../src/previews/backfill.js';
+import { QpdfNotAvailableError, QpdfTimeoutError, type QpdfRunner } from '../src/previews/qpdf.js';
+import { createMockQpdfRunner, makeRc4EncryptedPdf } from './helpers/encrypted-pdf.js';
 import { readFileSync } from 'node:fs';
 import { createPool } from '../src/db.js';
 
 const hasDb = !!process.env.DATABASE_URL && process.env.ELIB_RUN_DB_TESTS === '1';
+const hasQpdf = (() => {
+  const res = spawnSync(process.env.QPDF_PATH || 'qpdf', ['--version'], { stdio: 'ignore' });
+  return res.status === 0;
+})();
 
 /**
  * FakeDb tối thiểu cho bảng document_files: mô phỏng đúng các câu SQL mà
@@ -259,6 +266,282 @@ describe('job tạo bản xem trước (FakeDb + storage thật trong tmp)', () 
     expect(processed).toBe(2);
     expect(db.files.get(String(bad.id))?.preview_status).toBe('failed');
     expect(db.files.get(String(good.id))?.preview_status).toBe('ready');
+  });
+});
+
+async function extractPreviewText(doc: PDFDocument): Promise<string> {
+  const chunks: string[] = [];
+  for (const page of doc.getPages()) {
+    const contents = page.node.Contents();
+    const streams: PDFRawStream[] = [];
+    if (contents instanceof PDFRawStream) streams.push(contents);
+    else if (contents instanceof PDFArray) {
+      for (let i = 0; i < contents.size(); i++) {
+        const item = contents.lookup(i);
+        if (item instanceof PDFRawStream) streams.push(item);
+      }
+    }
+    for (const s of streams) {
+      const dec = Buffer.from(decodePDFRawStream(s).decode()).toString('latin1');
+      chunks.push(dec);
+      for (const m of dec.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)) {
+        chunks.push(Buffer.from(m[1], 'hex').toString('latin1'));
+      }
+    }
+  }
+  return chunks.join('\n');
+}
+
+describe('processPreviewFile với PDF mã hóa RC4 (fallback qpdf, mock runner)', () => {
+  let root: string;
+  let storage: LocalDiskStorage;
+  let db: FakePreviewDb;
+  let cfg: AppConfig;
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), 'elib-enc-preview-'));
+    storage = new LocalDiskStorage(root);
+    db = new FakePreviewDb();
+    cfg = { ...loadConfig(), previewFileTimeoutMs: 10_000 };
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  });
+
+  async function addEncryptedPdf(bytes: Uint8Array): Promise<Record<string, unknown>> {
+    const docId = randomUUID();
+    const fileId = randomUUID();
+    const rel = storage.buildOriginalPath(docId, 1, fileId, 'pdf');
+    await storage.saveBytes(bytes, rel);
+    const row: Record<string, unknown> = {
+      id: fileId,
+      document_id: docId,
+      version: 1,
+      storage_path: rel,
+      mime_type: 'application/pdf',
+      file_size: bytes.length,
+      page_count: null,
+      preview_status: 'pending',
+      preview_path: null,
+      preview_pages: null,
+      preview_error: null,
+      preview_locked_at: null,
+      created_at: new Date().toISOString()
+    };
+    db.addFile(row);
+    return row;
+  }
+
+  async function tmpEntries(): Promise<string[]> {
+    return readdir(path.join(root, 'tmp')).catch(() => []);
+  }
+
+  it('RC4 user password rỗng, owner chặn sửa/ghép trang -> ready, đúng số trang, không text trang bị cắt, không metadata/outline/attachment', async () => {
+    const originalBytes = makeRc4EncryptedPdf({ pageCount: 10, userPassword: '' });
+    const row = await addEncryptedPdf(originalBytes);
+    const mock = createMockQpdfRunner();
+
+    const outcome = await processPreviewFile(
+      db.asPool(),
+      storage,
+      row as unknown as PreviewFileRow,
+      cfg,
+      () => undefined,
+      { runner: mock.runner }
+    );
+    expect(outcome).toBe('ready');
+
+    const saved = db.files.get(String(row.id))!;
+    expect(saved.preview_status).toBe('ready');
+    expect(saved.page_count).toBe(10);
+    expect(saved.preview_pages).toBe(2);
+    expect(saved.preview_error).toBeNull();
+    expect(await tmpEntries()).toEqual([]);
+
+    const previewBytes = await storage.readBytes(String(saved.preview_path), 10 * 1024 * 1024);
+    const previewDoc = await PDFDocument.load(previewBytes);
+    expect(previewDoc.getPageCount()).toBe(2);
+    expect(previewDoc.isEncrypted).toBe(false);
+    expect(previewDoc.getTitle() ?? '').toBe('');
+    expect(previewDoc.getAuthor() ?? '').toBe('');
+    expect(previewDoc.catalog.get(PDFName.of('Outlines'))).toBeUndefined();
+    expect(previewDoc.catalog.get(PDFName.of('Names'))).toBeUndefined();
+    expect(previewDoc.catalog.get(PDFName.of('Metadata'))).toBeUndefined();
+
+    const rawLatin1 = previewBytes.toString('latin1');
+    expect(rawLatin1).not.toContain('Tieu de bi mat');
+    expect(rawLatin1).not.toContain('Tac gia bi mat');
+    expect(rawLatin1).not.toContain('secret-attachment');
+    // Kiểm tra text trang giữ lại có mặt và trang bị cắt (3..10) vắng mặt hoàn toàn.
+    const extracted = await extractPreviewText(previewDoc);
+    expect(extracted).toContain('PAGE-MARKER-1');
+    expect(extracted).toContain('PAGE-MARKER-2');
+    for (let i = 3; i <= 10; i++) {
+      expect(extracted).not.toContain(`PAGE-MARKER-${i}`);
+      expect(rawLatin1).not.toContain(`PAGE-MARKER-${i}`);
+    }
+  });
+
+  it('RC4 cần mật khẩu mở -> failed với preview_error rõ ràng, không đoán mật khẩu, không lưu preview', async () => {
+    const originalBytes = makeRc4EncryptedPdf({ pageCount: 10, userPassword: 'user-pass-123' });
+    const row = await addEncryptedPdf(originalBytes);
+    const mock = createMockQpdfRunner();
+
+    const outcome = await processPreviewFile(
+      db.asPool(),
+      storage,
+      row as unknown as PreviewFileRow,
+      cfg,
+      () => undefined,
+      { runner: mock.runner }
+    );
+    expect(outcome).toBe('failed');
+    expect(mock.calls).toHaveLength(1);
+    const saved = db.files.get(String(row.id))!;
+    expect(saved.preview_status).toBe('failed');
+    expect(String(saved.preview_error)).toContain('mật khẩu');
+    expect(saved.preview_path).toBeNull();
+    expect(await tmpEntries()).toEqual([]);
+  });
+
+  it('RC4 1 trang user password rỗng -> unsupported, lưu page_count=1', async () => {
+    const row = await addEncryptedPdf(makeRc4EncryptedPdf({ pageCount: 1, userPassword: '' }));
+    const mock = createMockQpdfRunner();
+    const outcome = await processPreviewFile(
+      db.asPool(),
+      storage,
+      row as unknown as PreviewFileRow,
+      cfg,
+      () => undefined,
+      { runner: mock.runner }
+    );
+    expect(outcome).toBe('unsupported');
+    expect(mock.calls).toHaveLength(1);
+    const saved = db.files.get(String(row.id))!;
+    expect(saved.page_count).toBe(1);
+    expect(saved.preview_path).toBeNull();
+  });
+
+  it('qpdf exit code 3 (warning) vẫn tạo preview ready', async () => {
+    const row = await addEncryptedPdf(makeRc4EncryptedPdf({ pageCount: 5, userPassword: '' }));
+    const mock = createMockQpdfRunner({ successExitCode: 3 });
+    const outcome = await processPreviewFile(
+      db.asPool(),
+      storage,
+      row as unknown as PreviewFileRow,
+      cfg,
+      () => undefined,
+      { runner: mock.runner }
+    );
+    expect(outcome).toBe('ready');
+    expect(db.files.get(String(row.id))?.preview_pages).toBe(1);
+  });
+
+  it('thiếu qpdf hoặc qpdf timeout -> failed rõ ràng, dọn sạch thư mục tạm', async () => {
+    const rowMissing = await addEncryptedPdf(makeRc4EncryptedPdf({ pageCount: 5, userPassword: '' }));
+    const missingRunner: QpdfRunner = async () => {
+      throw new QpdfNotAvailableError();
+    };
+    expect(
+      await processPreviewFile(db.asPool(), storage, rowMissing as unknown as PreviewFileRow, cfg, () => undefined, {
+        runner: missingRunner
+      })
+    ).toBe('failed');
+    expect(String(db.files.get(String(rowMissing.id))?.preview_error)).toContain('qpdf');
+
+    const rowTimeout = await addEncryptedPdf(makeRc4EncryptedPdf({ pageCount: 5, userPassword: '' }));
+    const timeoutRunner: QpdfRunner = async () => {
+      throw new QpdfTimeoutError();
+    };
+    expect(
+      await processPreviewFile(db.asPool(), storage, rowTimeout as unknown as PreviewFileRow, cfg, () => undefined, {
+        runner: timeoutRunner
+      })
+    ).toBe('failed');
+    expect(String(db.files.get(String(rowTimeout.id))?.preview_error)).toContain('Hết thời gian');
+    expect(await tmpEntries()).toEqual([]);
+  });
+});
+
+describe.skipIf(!hasQpdf)('PDF mã hóa — tích hợp qpdf thật trên hệ thống', () => {
+  let root: string;
+  let storage: LocalDiskStorage;
+  let db: FakePreviewDb;
+  let cfg: AppConfig;
+
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), 'elib-qpdf-real-'));
+    storage = new LocalDiskStorage(root);
+    db = new FakePreviewDb();
+    cfg = { ...loadConfig(), previewFileTimeoutMs: 15_000 };
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  });
+
+  it('qpdf thật: RC4 user password rỗng -> ready, đúng số trang, không text trang bị cắt; cần mật khẩu -> failed', async () => {
+    const openDocId = randomUUID();
+    const openFileId = randomUUID();
+    const openRel = storage.buildOriginalPath(openDocId, 1, openFileId, 'pdf');
+    const openBytes = makeRc4EncryptedPdf({ pageCount: 10, userPassword: '' });
+    await storage.saveBytes(openBytes, openRel);
+    const openRow: Record<string, unknown> = {
+      id: openFileId,
+      document_id: openDocId,
+      version: 1,
+      storage_path: openRel,
+      mime_type: 'application/pdf',
+      file_size: openBytes.length,
+      page_count: null,
+      preview_status: 'pending',
+      created_at: new Date().toISOString()
+    };
+    db.addFile(openRow);
+
+    expect(
+      await processPreviewFile(db.asPool(), storage, openRow as unknown as PreviewFileRow, cfg)
+    ).toBe('ready');
+    const savedOpen = db.files.get(openFileId)!;
+    expect(savedOpen.page_count).toBe(10);
+    expect(savedOpen.preview_pages).toBe(2);
+    const previewBytes = await storage.readBytes(String(savedOpen.preview_path), 10 * 1024 * 1024);
+    const previewDoc = await PDFDocument.load(previewBytes);
+    expect(previewDoc.getPageCount()).toBe(2);
+    expect(previewDoc.catalog.get(PDFName.of('Outlines'))).toBeUndefined();
+    expect(previewDoc.catalog.get(PDFName.of('Names'))).toBeUndefined();
+    const extracted = await extractPreviewText(previewDoc);
+    expect(extracted).toContain('PAGE-MARKER-1');
+    expect(extracted).toContain('PAGE-MARKER-2');
+    const rawLatin1 = previewBytes.toString('latin1');
+    for (let i = 3; i <= 10; i++) {
+      expect(extracted).not.toContain(`PAGE-MARKER-${i}`);
+      expect(rawLatin1).not.toContain(`PAGE-MARKER-${i}`);
+    }
+
+    const lockedDocId = randomUUID();
+    const lockedFileId = randomUUID();
+    const lockedRel = storage.buildOriginalPath(lockedDocId, 1, lockedFileId, 'pdf');
+    const lockedBytes = makeRc4EncryptedPdf({ pageCount: 10, userPassword: 'user-pass' });
+    await storage.saveBytes(lockedBytes, lockedRel);
+    const lockedRow: Record<string, unknown> = {
+      id: lockedFileId,
+      document_id: lockedDocId,
+      version: 1,
+      storage_path: lockedRel,
+      mime_type: 'application/pdf',
+      file_size: lockedBytes.length,
+      page_count: null,
+      preview_status: 'pending',
+      created_at: new Date().toISOString()
+    };
+    db.addFile(lockedRow);
+
+    expect(
+      await processPreviewFile(db.asPool(), storage, lockedRow as unknown as PreviewFileRow, cfg)
+    ).toBe('failed');
+    expect(String(db.files.get(lockedFileId)?.preview_error)).toContain('mật khẩu');
   });
 });
 

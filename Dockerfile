@@ -18,9 +18,9 @@ RUN npm run build
 FROM node:22-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-# wget cho HEALTHCHECK bên dưới.
+# wget cho HEALTHCHECK bên dưới; qpdf để giải mã/cắt trang preview cho PDF mã hóa (user password rỗng).
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends wget \
+  && apt-get install -y --no-install-recommends wget qpdf \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 # Cài dependency production + tsx để chạy được các script quản trị trong container:

@@ -61,9 +61,11 @@ const doc = (status: string, visibility: string, created_by: string | null = OWN
 });
 
 describe('canDownloadOriginal — ma trận quyền tải bản gốc', () => {
+  const visibilities = ['public', 'members', 'internal', 'private'];
+
   it('người tạo và admin tải được ở MỌI status/visibility', () => {
     for (const status of ['published', 'draft', 'hidden']) {
-      for (const visibility of ['public', 'internal', 'private']) {
+      for (const visibility of visibilities) {
         expect(canDownloadOriginal(owner, doc(status, visibility)), `chủ / ${status}+${visibility}`).toBe(true);
         expect(canDownloadOriginal(ownerEditor, doc(status, visibility)), `editor là chủ / ${status}+${visibility}`).toBe(true);
         expect(canDownloadOriginal(admin, doc(status, visibility)), `admin / ${status}+${visibility}`).toBe(true);
@@ -73,7 +75,7 @@ describe('canDownloadOriginal — ma trận quyền tải bản gốc', () => {
 
   it('editor không phải người tạo, viewer nội bộ/ngoài, chưa đăng nhập KHÔNG tải được ở mọi tổ hợp', () => {
     for (const status of ['published', 'draft', 'hidden']) {
-      for (const visibility of ['public', 'internal', 'private']) {
+      for (const visibility of visibilities) {
         const d = doc(status, visibility);
         expect(canDownloadOriginal(editorNonOwner, d), `editor khác / ${status}+${visibility}`).toBe(false);
         expect(canDownloadOriginal(internalViewer, d), `viewer nội bộ / ${status}+${visibility}`).toBe(false);
@@ -81,6 +83,15 @@ describe('canDownloadOriginal — ma trận quyền tải bản gốc', () => {
         expect(canDownloadOriginal(null, d), `chưa đăng nhập / ${status}+${visibility}`).toBe(false);
       }
     }
+  });
+
+  it('tài khoản không active (kể cả là chủ hoặc admin) KHÔNG tải/xem toàn bộ được', () => {
+    const disabledOwner: CurrentUser = { ...owner, status: 'disabled' };
+    const disabledAdmin: CurrentUser = { ...admin, status: 'disabled' };
+    const d = doc('published', 'members');
+    expect(canDownloadOriginal(disabledOwner, d)).toBe(false);
+    expect(canDownloadOriginal(disabledAdmin, d)).toBe(false);
+    expect(canViewFull(disabledOwner, d)).toBe(false);
   });
 
   it('tài liệu không có người tạo (created_by NULL): chỉ admin', () => {
@@ -103,7 +114,7 @@ describe('canDownloadOriginal — ma trận quyền tải bản gốc', () => {
     ];
     for (const user of users) {
       for (const status of ['published', 'draft', 'hidden']) {
-        for (const visibility of ['public', 'internal', 'private']) {
+        for (const visibility of visibilities) {
           for (const createdBy of [OWNER_ID, OTHER_ID, null]) {
             const d = doc(status, visibility, createdBy);
             expect(canViewFull(user, d)).toBe(canDownloadOriginal(user, d));
@@ -113,12 +124,24 @@ describe('canDownloadOriginal — ma trận quyền tải bản gốc', () => {
     }
   });
 
-  it('ma trận "thấy tài liệu" (danh sách/preview) KHÔNG đổi: editor/viewer vẫn thấy như cũ', () => {
+  it('ma trận "thấy tài liệu" (danh sách/preview) và visibility=members: external thấy + preview, KHÔNG tải bản gốc/xem toàn bộ', () => {
     // Editor không phải người tạo vẫn thấy draft/internal trong danh sách + preview...
     expect(visibleInList(editorNonOwner, doc('draft', 'private'))).toBe(true);
     expect(canPreview(editorNonOwner, doc('published', 'internal'))).toBe(true);
     expect(visibleInList(internalViewer, doc('published', 'internal'))).toBe(true);
     expect(visibleInList(null, doc('published', 'public'))).toBe(true);
+    // published + members: mọi tài khoản active (gồm external) thấy + preview, không tải được bản gốc/xem toàn bộ
+    expect(visibleInList(null, doc('published', 'members'))).toBe(false);
+    expect(canPreview(null, doc('published', 'members'))).toBe(false);
+    expect(visibleInList(externalViewer, doc('published', 'members'))).toBe(true);
+    expect(canPreview(externalViewer, doc('published', 'members'))).toBe(true);
+    expect(canDownload(externalViewer, doc('published', 'members'))).toBe(true);
+    expect(canDownloadOriginal(externalViewer, doc('published', 'members'))).toBe(false);
+    expect(canViewFull(externalViewer, doc('published', 'members'))).toBe(false);
+    expect(canDownloadOriginal(internalViewer, doc('published', 'members'))).toBe(false);
+    expect(canDownloadOriginal(editorNonOwner, doc('published', 'members'))).toBe(false);
+    expect(canDownloadOriginal(owner, doc('published', 'members'))).toBe(true);
+    expect(canDownloadOriginal(admin, doc('published', 'members'))).toBe(true);
     // ...và canDownload (ma trận thấy) vẫn khớp visibleInList như trước...
     expect(canDownload(editorNonOwner, doc('published', 'public'))).toBe(true);
     // ...nhưng tải bản gốc thì KHÔNG.
@@ -270,11 +293,20 @@ describe('route tải bản gốc + can_download trong danh sách (FakePool + st
     expect(res.json().error.code).toBe('DOWNLOAD_FORBIDDEN');
   });
 
-  it('viewer ngoài -> 403 DOWNLOAD_FORBIDDEN', async () => {
-    const { docId, fileId } = await addDoc();
+  it('viewer ngoài -> 403 DOWNLOAD_FORBIDDEN (kể cả tài liệu members)', async () => {
+    const { docId, fileId } = await addDoc({ visibility: 'members' });
     const res = await get(downloadUrl(docId, fileId), cookies.externalViewer);
     expect(res.statusCode).toBe(403);
     expect(res.json().error.code).toBe('DOWNLOAD_FORBIDDEN');
+  });
+
+  it('tài liệu members: chủ và admin tải được bản gốc; editor khác và viewer nội bộ -> 403 DOWNLOAD_FORBIDDEN', async () => {
+    const { docId, fileId } = await addDoc({ visibility: 'members' });
+    expect((await get(downloadUrl(docId, fileId), cookies.owner)).statusCode).toBe(200);
+    expect((await get(downloadUrl(docId, fileId), cookies.admin)).statusCode).toBe(200);
+    expect((await get(downloadUrl(docId, fileId), cookies.editorNonOwner)).statusCode).toBe(403);
+    expect((await get(downloadUrl(docId, fileId), cookies.internalViewer)).statusCode).toBe(403);
+    expect((await get(downloadUrl(docId, fileId))).statusCode).toBe(401);
   });
 
   it('chưa đăng nhập -> 401 (quy ước cũ của route tải), không lộ bytes', async () => {
@@ -353,5 +385,14 @@ describe('route tải bản gốc + can_download trong danh sách (FakePool + st
     const asAnon = await get('/api/documents');
     expect(asAnon.json().data[0].can_download).toBe(false);
     expect(asAnon.json().data[0].can_view_full).toBe(false);
+
+    // Tài liệu members: can_download / can_view_full vẫn chỉ chủ + admin.
+    pool.listRows[0].visibility = 'members';
+    expect((await get('/api/documents', cookies.owner)).json().data[0].can_download).toBe(true);
+    expect((await get('/api/documents', cookies.admin)).json().data[0].can_download).toBe(true);
+    expect((await get('/api/documents', cookies.externalViewer)).json().data[0].can_download).toBe(false);
+    expect((await get('/api/documents', cookies.externalViewer)).json().data[0].can_view_full).toBe(false);
+    expect((await get('/api/documents', cookies.internalViewer)).json().data[0].can_download).toBe(false);
+    expect((await get('/api/documents', cookies.editorNonOwner)).json().data[0].can_download).toBe(false);
   });
 });

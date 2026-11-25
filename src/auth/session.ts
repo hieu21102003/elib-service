@@ -122,47 +122,61 @@ export interface DocumentAccessRow {
   created_by: string | null;
 }
 
-/** Người dùng có quyền với tài liệu 'internal' không: nội bộ, hoặc editor/admin. */
+/** Người dùng có tài khoản đang hoạt động (status='active') hay không. */
+export function isActiveUser(user: CurrentUser | null): user is CurrentUser {
+  return !!user && user.status === 'active';
+}
+
+/** Người dùng có quyền với tài liệu 'members' không: đã đăng nhập và status=active (gồm cả external). */
+export function canAccessMembers(user: CurrentUser | null): boolean {
+  return isActiveUser(user);
+}
+
+/** Người dùng có quyền với tài liệu 'internal' không: status=active và (nội bộ hoặc editor/admin). */
 export function canAccessInternal(user: CurrentUser | null): boolean {
-  return !!user && (user.userType === 'internal' || user.role === 'editor' || user.role === 'admin');
+  return isActiveUser(user) && (user.userType === 'internal' || user.role === 'editor' || user.role === 'admin');
 }
 
 /**
  * Ma trận quyền "thấy tài liệu" (danh sách + bản xem trước):
- * - draft/hidden: người tạo, editor, admin (viewer không bao giờ).
+ * - draft/hidden: người tạo, editor, admin (viewer không bao giờ; cần status=active).
  * - published + public: mọi người (kể cả chưa đăng nhập).
- * - published + internal: CHỈ người nội bộ (user_type=internal) hoặc editor/admin.
+ * - published + members: mọi tài khoản đã đăng nhập và status=active (gồm cả external).
+ * - published + internal: CHỈ người nội bộ (user_type=internal) hoặc editor/admin (status=active).
  *   Khách ngoài (external) đã đăng nhập cũng không thấy được.
- * - published + private: người tạo hoặc admin.
+ * - published + private: người tạo hoặc admin (status=active).
  *
  * LƯU Ý: đây KHÔNG còn là quyền tải bản gốc. Tải file gốc dùng quy tắc chặt
  * hơn ở canDownloadOriginal() bên dưới; ma trận này chỉ còn quyết định ai
  * thấy tài liệu trong danh sách và ai xem được bản xem trước.
  */
 export function canDownload(user: CurrentUser | null, doc: DocumentAccessRow): boolean {
+  const active = isActiveUser(user) ? user : null;
   if (doc.status === 'draft' || doc.status === 'hidden') {
-    return !!user && (user.id === doc.created_by || user.role === 'editor' || user.role === 'admin');
+    return !!active && (active.id === doc.created_by || active.role === 'editor' || active.role === 'admin');
   }
   // published
   if (doc.visibility === 'public') return true;
-  if (!user) return false;
-  if (doc.visibility === 'internal') return canAccessInternal(user);
+  if (!active) return false;
+  if (doc.visibility === 'members') return canAccessMembers(active);
+  if (doc.visibility === 'internal') return canAccessInternal(active);
   // private
-  return user.id === doc.created_by || user.role === 'admin';
+  return active.id === doc.created_by || active.role === 'admin';
 }
 
 /**
  * Quyền tải BẢN GỐC (file gốc qua .../download) — chặt hơn ma trận
  * "thấy tài liệu" ở trên: CHỈ người tạo tài liệu (documents.created_by)
- * hoặc admin. Editor không phải người tạo, viewer nội bộ/ngoài đều KHÔNG
- * tải được bản gốc (họ vẫn thấy tài liệu trong danh sách và xem bản xem
- * trước theo ma trận cũ). Quy tắc không phụ thuộc status/visibility.
- * /view (xem toàn bộ online) dùng chung quy tắc này qua canViewFull.
+ * hoặc admin (và phải đang status=active). Editor không phải người tạo,
+ * viewer nội bộ/ngoài đều KHÔNG tải được bản gốc (họ vẫn thấy tài liệu
+ * trong danh sách và xem bản xem trước theo ma trận trên). Quy tắc không
+ * phụ thuộc status/visibility. /view (xem toàn bộ online) dùng chung quy tắc
+ * này qua canViewFull.
  *
  * Điểm mở rộng tương lai: khi có tính năng mua tài liệu, kiểm tra quyền
  * của người đã mua (purchaser) sẽ được thêm TẠI ĐÂY — chỉ sửa một chỗ này.
  */
 export function canDownloadOriginal(user: CurrentUser | null, doc: DocumentAccessRow): boolean {
-  if (!user) return false;
+  if (!isActiveUser(user)) return false;
   return user.id === doc.created_by || user.role === 'admin';
 }

@@ -56,7 +56,8 @@ async function loadDocumentWithLatestFile(pool: pg.Pool, docId: string): Promise
  * - GET /api/documents/:id/view — bản gốc xem toàn bộ, CHỈ người tạo + admin.
  *
  * Với người chưa đăng nhập, mọi trường hợp "không tồn tại" và "không có
- * quyền" đều trả 404 thống nhất để không lộ sự tồn tại của tài liệu private.
+ * quyền" (members/internal/private/draft/hidden) đều trả 404 thống nhất
+ * để không lộ sự tồn tại của tài liệu.
  * Endpoint preview TUYỆT ĐỐI không trả bytes file gốc: chỉ stream đúng
  * preview_path, thiếu preview thì trả lỗi chứ không fallback sang bản gốc.
  */

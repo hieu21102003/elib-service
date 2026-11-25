@@ -110,16 +110,18 @@ Lưu ý vận hành:
 
 Lỗi trả dạng `{ "error": { "code": "...", "message": "<tiếng Việt>" } }`.
 
-### Ma trận quyền tải file
+### Ma trận quyền thấy tài liệu (danh sách + bản xem trước)
 
-| Trạng thái / Hiển thị | Chưa đăng nhập | viewer (internal) | viewer (external) | editor | admin | Người tạo |
+| Trạng thái / Hiển thị | Chưa đăng nhập | viewer (external) | viewer (internal) | editor | admin | Người tạo |
 | --- | --- | --- | --- | --- | --- | --- |
 | published + public | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| published + internal | ✘ | ✔ | ✘ | ✔ | ✔ | ✔ |
+| published + members | ✘ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| published + internal | ✘ | ✘ | ✔ | ✔ | ✔ | ✔ |
 | published + private | ✘ | ✘ | ✘ | ✘* | ✔ | ✔ |
 | draft / hidden (mọi visibility) | ✘ | ✘ | ✘ | ✔ | ✔ | ✔ |
 
-\* Editor không phải người tạo không tải được tài liệu `private` đã xuất bản (theo đúng quy tắc "người tạo hoặc admin").
+\* Tài khoản phải đang `status = active`. Editor không phải người tạo không thấy tài liệu `private` đã xuất bản (theo đúng quy tắc "người tạo hoặc admin").
+\*\* Tải bản gốc (`/download`) và xem toàn bộ (`/view`) CHỈ cho **người tạo tài liệu** hoặc **admin** (áp dụng cho cả `public`, `members`, `internal`, `private`). Người chưa đăng nhập nhận `404` thống nhất trên `/preview` và `/view` cho `members`/`internal`/`private` để không lộ sự tồn tại.
 
 Upload: chỉ `admin`/`editor`. `viewer` gọi API upload nhận `403`; trang upload tạm ẩn form với viewer.
 
@@ -176,16 +178,16 @@ Phản hồi:
 Mọi người xem được tài liệu trực tuyến, nhưng người không phải chủ tài liệu/admin chỉ xem được **bản xem trước** gồm một số trang đầu; chủ tài liệu + admin xem toàn bộ.
 
 - **Số trang xem trước:** `min(max(1, ceil(tổng × PREVIEW_RATIO)), PREVIEW_MAX_PAGES)` — mặc định RATIO=0.2, MAX=10 (10 trang → 2, 2 trang → 1, 100 trang → 10). Nếu số trang tính ra bao phủ toàn bộ tài liệu (vd tài liệu 1 trang) thì **không có bản xem trước** (`PREVIEW_NOT_AVAILABLE`).
-- **Quyền xem trước** = quyền thấy tài liệu theo ma trận tải file ở trên (published+public: kể cả chưa đăng nhập). **Quyền xem toàn bộ** (`/view`): chỉ người tạo + admin. Lưu ý: editor vẫn giữ quyền *tải* bản gốc như hiện nay, nên giới hạn "chỉ xem trước" của editor chỉ mang tính giao diện.
+- **Quyền xem trước** = quyền thấy tài liệu theo ma trận ở trên (`published + public`: kể cả chưa đăng nhập; `published + members`: mọi tài khoản đã đăng nhập `status=active`, gồm cả `external`; `published + internal`: người nội bộ hoặc `editor`/`admin`). **Quyền xem toàn bộ** (`/view`) và tải bản gốc (`/download`): chỉ người tạo + `admin`.
 - **Chống lách:** bản xem trước là file PDF riêng đã cắt sẵn ở server (`previews/{doc_id}/v{version}/preview.pdf`, tạo bằng pdf-lib `copyPages` sang document mới — không mang metadata/outline/attachment của bản gốc). Endpoint preview chỉ stream đúng file này, không bao giờ trả bytes bản gốc cho người không có quyền toàn bộ.
-- **Job nền** (trong tiến trình, không Redis): poll bảng `document_files` (`preview_status`: pending → processing → ready/failed/unsupported), nhận việc nguyên tử bằng `FOR UPDATE SKIP LOCKED`, nhả lại job quá hạn, timeout mỗi file, trần dung lượng `PREVIEW_MAX_FILE_MB`. PDF hỏng/mã hóa → `failed`. Chỉ PDF mới có bản xem trước; định dạng khác (kể cả ảnh) là `unsupported` ở giai đoạn này.
+- **Job nền** (trong tiến trình, không Redis): poll bảng `document_files` (`preview_status`: pending → processing → ready/failed/unsupported), nhận việc nguyên tử bằng `FOR UPDATE SKIP LOCKED`, nhả lại job quá hạn, timeout mỗi file, trần dung lượng `PREVIEW_MAX_FILE_MB`. Với PDF mã hóa (vd RC4, user password rỗng, owner chặn sửa/ghép trang) mà `pdf-lib` không tải được, job fallback sang tiến trình con `qpdf` (`--empty --pages <in> --password= 1-N -- <out>`, không dùng shell string, có timeout, ghi file tạm rồi rename) — chỉ xử lý user password rỗng; file cần mật khẩu mở hoặc PDF hỏng → `failed` (không thử đoán mật khẩu). Chỉ PDF mới có bản xem trước; định dạng khác (kể cả ảnh) là `unsupported` ở giai đoạn này.
 - **Hồi tố:** `npm run backfill:previews [-- --rate 2] [-- --limit 100] [-- --dry-run]` — idempotent, in tổng kết ready/failed/unsupported/bỏ qua.
-- **Mã lỗi ổn định:** `PREVIEW_NOT_READY` (404), `PREVIEW_UNSUPPORTED` (415), `PREVIEW_NOT_AVAILABLE` (403). Với người chưa đăng nhập, "không tồn tại" và "không có quyền" đều trả 404 `NOT_FOUND` thống nhất. Cache: tài liệu public được cache kèm ETag (gồm version + số trang preview); còn lại `Cache-Control: private, no-store`. Mỗi lượt xem đều ghi log audit (user/IP, tài liệu, thời điểm).
+- **Mã lỗi ổn định:** `PREVIEW_NOT_READY` (404), `PREVIEW_UNSUPPORTED` (415), `PREVIEW_NOT_AVAILABLE` (403). Với người chưa đăng nhập, "không tồn tại" và "không có quyền" (`members`/`internal`/`private`/`draft`/`hidden`) đều trả 404 `NOT_FOUND` thống nhất. Cache: chỉ tài liệu `published + public` được cache kèm ETag (gồm version + số trang preview); `members`/`internal`/`private` đều trả `Cache-Control: private, no-store`. Mỗi lượt xem đều ghi log audit (user/IP, tài liệu, thời điểm).
 - **Lưu ý Reverse_proxy:** allowlist của elib-proxy hiện **chưa có** hai route `/preview` và `/view` — cần bổ sung ở phía Reverse_proxy (Giai đoạn B) thì người dùng mới vào được qua Smart.Rail.
 
 ## Dữ liệu
 
-Bảng: `users` (role admin/editor/viewer), `sessions`, `categories` (cây `parent_id`), `documents` (có `price` nullable — chưa hiện trên form Giai đoạn 1, chưa thanh toán), `document_files` (`page_count` do job xem trước đếm; thêm các cột `preview_*` ở migration `004_previews.sql`), `tags`, `document_tags`. Migration ở `migrations/` (`001_init.sql` tạo bảng; `002_search.sql` thêm tìm kiếm không dấu; `003_standards.sql` metadata tiêu chuẩn; `004_previews.sql` cột xem trước), chạy bằng `npm run migrate` (có bảng `_migrations`, chạy lại an toàn; dự án không dùng down-migration).
+Bảng: `users` (role admin/editor/viewer, `status`, `user_type`), `sessions`, `login_attempts`, `categories` (cây `parent_id`), `documents` (có `price` nullable — chưa hiện trên form Giai đoạn 1, chưa thanh toán; `visibility` gồm `public`/`members`/`internal`/`private`), `document_files` (`page_count` do job xem trước đếm; thêm các cột `preview_*` ở migration `004_previews.sql`), `tags`, `document_tags`. Migration ở `migrations/` (`001_init.sql` tạo bảng; `002_search.sql` thêm tìm kiếm không dấu; `003_standards.sql` metadata tiêu chuẩn; `004_previews.sql` cột xem trước; `005_user_registration.sql` đăng ký/duyệt tài khoản; `006_members_visibility.sql` thêm mức hiển thị `members`), chạy bằng `npm run migrate` (có bảng `_migrations`, chạy lại an toàn; dự án không dùng down-migration).
 
 Danh mục seed hiện là **dữ liệu mẫu** (6 nhóm Smart.Rail CAT01–CAT06 + danh mục con của nhóm Hạ tầng) — sẽ thay bằng danh sách thật khi được cung cấp.
 

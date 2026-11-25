@@ -21,25 +21,34 @@ const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_ID = '22222222-2222-4222-8222-222222222222';
 const EDITOR_ID = '33333333-3333-4333-8333-333333333333';
 const ADMIN_ID = '44444444-4444-4444-8444-444444444444';
+const EXTERNAL_ID = '55555555-5555-4555-8555-555555555555';
+const DISABLED_ID = '66666666-6666-4666-8666-666666666666';
 
-function makeUser(role: UserRole, id: string): CurrentUser {
+function makeUser(
+  role: UserRole,
+  id: string,
+  userType: CurrentUser['userType'] = 'internal',
+  status: CurrentUser['status'] = 'active'
+): CurrentUser {
   return {
     id,
     username: null,
     email: `${role}-${id.slice(0, 4)}@congty.vn`,
     role,
     displayName: null,
-    userType: 'internal',
-    status: 'active',
+    userType,
+    status,
     mustChangePassword: false
   };
 }
 
 const USERS = {
   owner: makeUser('viewer', OWNER_ID),
-  otherViewer: makeUser('viewer', OTHER_ID),
+  externalViewer: makeUser('viewer', EXTERNAL_ID, 'external'),
+  otherViewer: makeUser('viewer', OTHER_ID, 'internal'),
   editor: makeUser('editor', EDITOR_ID),
-  admin: makeUser('admin', ADMIN_ID)
+  admin: makeUser('admin', ADMIN_ID),
+  disabledUser: makeUser('viewer', DISABLED_ID, 'internal', 'disabled')
 };
 
 const hashToken = (raw: string) => createHash('sha256').update(raw).digest('hex');
@@ -169,16 +178,17 @@ describe('route xem trước / xem toàn bộ (FakePool + storage thật)', () =
     expect(res.body).not.toContain('ORIGINAL-BYTES');
   });
 
-  it('ma trận quyền preview khớp visibleInList ở mọi tổ hợp', async () => {
+  it('ma trận quyền preview khớp visibleInList ở mọi tổ hợp (gồm members × anonymous/external/internal/editor/chủ/admin)', async () => {
     const actors: Array<{ label: string; user: CurrentUser | null; cookie?: string }> = [
       { label: 'anonymous', user: null },
-      { label: 'viewer khác', user: USERS.otherViewer, cookie: cookies.otherViewer },
+      { label: 'external', user: USERS.externalViewer, cookie: cookies.externalViewer },
+      { label: 'internal viewer', user: USERS.otherViewer, cookie: cookies.otherViewer },
       { label: 'editor', user: USERS.editor, cookie: cookies.editor },
       { label: 'chủ', user: USERS.owner, cookie: cookies.owner },
       { label: 'admin', user: USERS.admin, cookie: cookies.admin }
     ];
     for (const status of ['published', 'draft', 'hidden']) {
-      for (const visibility of ['public', 'internal', 'private']) {
+      for (const visibility of ['public', 'members', 'internal', 'private']) {
         const docId = await addDoc({ status, visibility });
         for (const actor of actors) {
           const allowed = visibleInList(actor.user, {
@@ -201,17 +211,50 @@ describe('route xem trước / xem toàn bộ (FakePool + storage thật)', () =
     }
   });
 
-  it('anonymous: tài liệu private và tài liệu không tồn tại đều 404 NOT_FOUND như nhau', async () => {
+  it('anonymous: tài liệu members/internal/private và tài liệu không tồn tại đều 404 NOT_FOUND như nhau', async () => {
+    const membersId = await addDoc({ visibility: 'members' });
+    const internalId = await addDoc({ visibility: 'internal' });
     const privateId = await addDoc({ visibility: 'private' });
     const missingId = randomUUID();
-    const a = await get(`/api/documents/${privateId}/preview`);
-    const b = await get(`/api/documents/${missingId}/preview`);
-    expect(a.statusCode).toBe(404);
-    expect(b.statusCode).toBe(404);
-    expect(a.json().error.code).toBe(b.json().error.code);
+    const resMembers = await get(`/api/documents/${membersId}/preview`);
+    const resInternal = await get(`/api/documents/${internalId}/preview`);
+    const resPrivate = await get(`/api/documents/${privateId}/preview`);
+    const resMissing = await get(`/api/documents/${missingId}/preview`);
+    for (const r of [resMembers, resInternal, resPrivate, resMissing]) {
+      expect(r.statusCode).toBe(404);
+      expect(r.json().error.code).toBe('NOT_FOUND');
+    }
+    // /view cũng 404 cho anonymous với members/internal/private.
+    expect((await get(`/api/documents/${membersId}/view`)).statusCode).toBe(404);
+    expect((await get(`/api/documents/${internalId}/view`)).statusCode).toBe(404);
+    expect((await get(`/api/documents/${privateId}/view`)).statusCode).toBe(404);
     // id không phải UUID cũng 404.
     const c = await get('/api/documents/khong-phai-uuid/preview');
     expect(c.statusCode).toBe(404);
+  });
+
+  it('tài khoản status=disabled (cookie cũ) không xem được preview tài liệu members -> 404 NOT_FOUND', async () => {
+    const membersId = await addDoc({ visibility: 'members' });
+    const res = await get(`/api/documents/${membersId}/preview`, cookies.disabledUser);
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe('NOT_FOUND');
+  });
+
+  it('tài liệu members: external/internal/editor xem preview (private, no-store) nhưng bị /view 403; chủ/admin xem /view 200', async () => {
+    const membersId = await addDoc({ visibility: 'members' });
+    for (const cookie of [cookies.externalViewer, cookies.otherViewer, cookies.editor]) {
+      const prev = await get(`/api/documents/${membersId}/preview`, cookie);
+      expect(prev.statusCode).toBe(200);
+      expect(prev.body).toBe(PREVIEW.toString());
+      expect(prev.body).not.toContain('ORIGINAL-BYTES');
+      expect(prev.headers['cache-control']).toBe('private, no-store');
+      expect(prev.headers.etag).toBeUndefined();
+
+      const full = await get(`/api/documents/${membersId}/view`, cookie);
+      expect(full.statusCode).toBe(403);
+    }
+    expect((await get(`/api/documents/${membersId}/view`, cookies.owner)).statusCode).toBe(200);
+    expect((await get(`/api/documents/${membersId}/view`, cookies.admin)).statusCode).toBe(200);
   });
 
   it('/view: chỉ chủ + admin; editor và viewer khác bị từ chối; anonymous 404', async () => {

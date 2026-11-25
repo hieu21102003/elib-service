@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { EncryptedPDFError, PDFDocument } from 'pdf-lib';
 
 /**
  * Xử lý PDF cho bản xem trước bằng pdf-lib:
@@ -12,6 +12,31 @@ export interface BuiltPreview {
   bytes: Uint8Array;
   totalPages: number;
   previewPages: number;
+}
+
+const ENCRYPT_TAIL_BYTES = 128 * 1024;
+const ENCRYPT_MARKER_RE = /\/Encrypt(?:\s+\d+\s+\d+\s+R|\s*<<)/;
+
+/** Kiểm tra lỗi do pdf-lib ném ra có phải vì PDF được mã hóa hay không. */
+export function isEncryptedPdfError(err: unknown): boolean {
+  if (err instanceof EncryptedPDFError) return true;
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === 'EncryptedPDFError' ||
+    /(?:PDFDocument\.load|document).*is encrypted/i.test(err.message)
+  );
+}
+
+/**
+ * Kiểm tra dấu hiệu `/Encrypt` trong phần đuôi PDF (tối đa 128 KB cuối),
+ * để nhận diện PDF 1.5+ có ObjStm mã hóa khiến pdf-lib lỗi parse trước bước
+ * kiểm tra trailer.
+ */
+export function hasPdfEncryptMarker(bytes: Uint8Array): boolean {
+  const start = Math.max(0, bytes.length - ENCRYPT_TAIL_BYTES);
+  const slice = bytes.subarray(start);
+  const tail = Buffer.from(slice.buffer, slice.byteOffset, slice.byteLength).toString('latin1');
+  return ENCRYPT_MARKER_RE.test(tail);
 }
 
 /** Đếm số trang của một PDF (ném lỗi nếu PDF hỏng/mã hóa). */

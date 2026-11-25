@@ -213,6 +213,23 @@ describe('PATCH /api/documents/:id — đổi visibility (FakePool)', () => {
     expect(pool.docs.get(id)?.visibility).toBe('internal');
   });
 
+  it('admin và người tạo đổi được visibility sang members; editor khác/viewer bị 403; chưa đăng nhập 401', async () => {
+    const id = addDoc({ visibility: 'internal' });
+    const resOwner = await patch(id, { visibility: 'members' }, cookies.owner);
+    expect(resOwner.statusCode).toBe(200);
+    expect(resOwner.json().document.visibility).toBe('members');
+    expect(pool.docs.get(id)?.visibility).toBe('members');
+
+    const id2 = addDoc({ visibility: 'private' });
+    const resAdmin = await patch(id2, { visibility: 'members' }, cookies.admin);
+    expect(resAdmin.statusCode).toBe(200);
+    expect(resAdmin.json().document.visibility).toBe('members');
+
+    expect((await patch(id2, { visibility: 'public' }, cookies.editor)).statusCode).toBe(403);
+    expect((await patch(id2, { visibility: 'public' }, cookies.otherViewer)).statusCode).toBe(403);
+    expect((await patch(id2, { visibility: 'public' })).statusCode).toBe(401);
+  });
+
   it('visibility không hợp lệ bị 400 INVALID_VISIBILITY', async () => {
     const id = addDoc();
     for (const body of [{ visibility: 'cong-khai' }, { visibility: '' }, {}, { visibility: 123 }]) {

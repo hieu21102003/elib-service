@@ -2,7 +2,17 @@ import type pg from 'pg';
 import type { AppConfig } from '../config.js';
 import type { LocalDiskStorage } from '../storage/local-disk.js';
 import { computePreviewPages } from './page-count.js';
-import { buildPreviewPdf, countPdfPages } from './pdf-preview.js';
+import {
+  buildPreviewPdf,
+  countPdfPages,
+  hasPdfEncryptMarker,
+  isEncryptedPdfError
+} from './pdf-preview.js';
+import {
+  countPdfPagesWithQpdf,
+  extractPreviewPagesWithQpdf,
+  type QpdfRunner
+} from './qpdf.js';
 
 /**
  * Job nền tạo bản xem trước: chạy trong tiến trình elib, vòng lặp poll,
@@ -78,7 +88,8 @@ export async function processPreviewFile(
   storage: LocalDiskStorage,
   row: PreviewFileRow,
   cfg: AppConfig,
-  log: PreviewLogFn = () => undefined
+  log: PreviewLogFn = () => undefined,
+  qpdfOpts?: { runner?: QpdfRunner }
 ): Promise<PreviewOutcome> {
   try {
     if (row.mime_type !== PDF_MIME) {
@@ -94,10 +105,31 @@ export async function processPreviewFile(
       );
     }
 
+    const deadline = Date.now() + cfg.previewFileTimeoutMs;
+    const remainingMs = () => Math.max(1, deadline - Date.now());
+
     const result = await withTimeout(
       (async () => {
         const original = await storage.readBytes(row.storage_path, maxBytes);
-        const totalPages = await countPdfPages(original);
+        let totalPages: number;
+        let usedQpdf = false;
+        let originalAbsPath: string | null = null;
+        try {
+          totalPages = await countPdfPages(original);
+        } catch (err) {
+          if (isEncryptedPdfError(err) || hasPdfEncryptMarker(original)) {
+            usedQpdf = true;
+            originalAbsPath = storage.resolvePath(row.storage_path);
+            totalPages = await countPdfPagesWithQpdf(originalAbsPath, {
+              qpdfPath: cfg.qpdfPath,
+              timeoutMs: remainingMs(),
+              runner: qpdfOpts?.runner
+            });
+          } else {
+            throw err;
+          }
+        }
+
         const previewPages = computePreviewPages(totalPages, {
           ratio: cfg.previewRatio,
           maxPages: cfg.previewMaxPages
@@ -105,9 +137,26 @@ export async function processPreviewFile(
         if (previewPages === null) {
           return { totalPages, previewPages: null, previewPath: null as string | null };
         }
-        const built = await buildPreviewPdf(original, previewPages);
+
         const previewPath = storage.buildPreviewPath(row.document_id, row.version);
-        await storage.saveBytes(built.bytes, previewPath);
+        if (!usedQpdf) {
+          const built = await buildPreviewPdf(original, previewPages);
+          await storage.saveBytes(built.bytes, previewPath);
+          return { totalPages, previewPages, previewPath };
+        }
+
+        const tempOutPath = await storage.createTempPath();
+        try {
+          await extractPreviewPagesWithQpdf(originalAbsPath!, previewPages, tempOutPath, {
+            qpdfPath: cfg.qpdfPath,
+            timeoutMs: remainingMs(),
+            runner: qpdfOpts?.runner
+          });
+          await storage.commitTemp(tempOutPath, previewPath);
+        } catch (qErr) {
+          await storage.discardTemp(tempOutPath);
+          throw qErr;
+        }
         return { totalPages, previewPages, previewPath };
       })(),
       cfg.previewFileTimeoutMs,

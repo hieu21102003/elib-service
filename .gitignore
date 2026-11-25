@@ -3,3 +3,6 @@ dist/
 .env
 /storage/
 *.log
+# Thư mục thử nghiệm cục bộ và mọi file PDF mẫu — không commit lên repo.
+spikes/
+*.pdf
