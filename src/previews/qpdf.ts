@@ -197,6 +197,38 @@ export async function countPdfPagesWithQpdf(
 }
 
 /**
+ * Giải mã toàn bộ PDF (chỉ với user password rỗng) sang `outputTempPath`
+ * bằng `qpdf --password= <in> <out>`. Dùng cho job kiểm tra mã chuẩn:
+ * bản giải mã chỉ nằm ở thư mục tạm và bị xóa ngay sau khi trích chữ.
+ * File kết quả bắt buộc là PDF hợp lệ (> 0 byte, bắt đầu bằng `%PDF-`).
+ */
+export async function decryptPdfWithQpdf(
+  inputPath: string,
+  outputTempPath: string,
+  opts: QpdfOptions
+): Promise<void> {
+  assertSafeAbsPath(inputPath, 'inputPath');
+  assertSafeAbsPath(outputTempPath, 'outputTempPath');
+  const bin = opts.qpdfPath?.trim() || 'qpdf';
+  const runner = opts.runner ?? spawnQpdf;
+  const { exitCode, stderr } = await runner(
+    bin,
+    ['--password=', inputPath, outputTempPath],
+    opts.timeoutMs
+  );
+  if (exitCode !== 0 && exitCode !== 3) {
+    if (isInvalidPasswordStderr(stderr)) {
+      throw new QpdfPasswordRequiredError();
+    }
+    const detail = sanitizeStderr(stderr, [inputPath, outputTempPath]);
+    throw new Error(
+      `Không xử lý được PDF mã hóa bằng qpdf (giải mã, mã ${exitCode})${detail ? `: ${detail}` : ''}`
+    );
+  }
+  await assertValidPdfFile(outputTempPath);
+}
+
+/**
  * Giải mã (chỉ với user password rỗng) và cắt trang `1..previewPages` sang
  * `outputTempPath` bằng `qpdf --empty --pages <in> --password= 1-N -- <out>`.
  * File kết quả bắt buộc là PDF hợp lệ (> 0 byte, bắt đầu bằng `%PDF-`).

@@ -13,6 +13,7 @@ interface DocFileRow {
   doc_id: string;
   status: string;
   visibility: string;
+  standard_id: string | null;
   created_by: string | null;
   file_id: string | null;
   version: number | null;
@@ -29,7 +30,7 @@ interface DocFileRow {
 
 async function loadDocumentWithLatestFile(pool: pg.Pool, docId: string): Promise<DocFileRow | null> {
   const result = await pool.query(
-    `SELECT d.id AS doc_id, d.status, d.visibility, d.created_by,
+    `SELECT d.id AS doc_id, d.status, d.visibility, d.standard_id, d.created_by,
             f.id AS file_id, f.version, f.storage_path, f.original_filename,
             f.mime_type, f.file_size, f.checksum_sha256, f.page_count,
             f.preview_path, f.preview_pages, f.preview_status
@@ -40,7 +41,7 @@ async function loadDocumentWithLatestFile(pool: pg.Pool, docId: string): Promise
               df.preview_path, df.preview_pages, df.preview_status
        FROM document_files df
        WHERE df.document_id = d.id
-       ORDER BY df.version DESC, df.created_at DESC
+       ORDER BY (df.id = d.current_file_id) DESC, df.version DESC, df.created_at DESC
        LIMIT 1
      ) f ON true
      WHERE d.id = $1`,

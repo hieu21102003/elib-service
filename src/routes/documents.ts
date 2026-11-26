@@ -7,7 +7,13 @@ import type pg from 'pg';
 import type { AppConfig } from '../config.js';
 import { withTransaction } from '../db.js';
 import { AppError, badRequest, conflict, forbidden, notFound, unauthorized } from '../errors.js';
-import { canDownloadOriginal, canUpload, type CurrentUser } from '../auth/session.js';
+import {
+  canDownloadOriginal,
+  canUpload,
+  canUploadStandardFile,
+  type CurrentUser
+} from '../auth/session.js';
+import { findOrCreateStandardForUpload } from '../standards/repository.js';
 import { canViewFull } from '../previews/permissions.js';
 import { parseDocumentListQuery } from '../documents/list-query.js';
 import { searchPredicate } from '../documents/search.js';
@@ -28,6 +34,22 @@ const metadataSchema = z.object({
   language: z.string().trim().max(50).optional().default(''),
   visibility: z.enum(['public', 'members', 'internal', 'private']).default('internal'),
   status: z.enum(['draft', 'published', 'hidden']).default('draft'),
+  // File tiêu chuẩn: mã như trang chi tiết đang hiển thị (vd "TCVN 14552-1:2025").
+  // Có standard_code -> gắn documents.standard_id, ép visibility 'internal',
+  // price luôn NULL, chỉ nhận PDF, quyền tải lên = admin hoặc user_type=internal.
+  standard_code: z.string().trim().max(200).optional().default(''),
+  standard_title_vi: z.string().trim().max(1000).optional().default(''),
+  standard_title_en: z.string().trim().max(1000).optional().default(''),
+  standard_year: z
+    .union([z.number(), z.string()])
+    .optional()
+    .transform((v) => {
+      if (v === undefined || v === '') return null;
+      const n = typeof v === 'number' ? v : Number.parseInt(v, 10);
+      return Number.isInteger(n) ? n : null;
+    }),
+  // Nhãn chữ của phiên bản (vd "Sửa đổi 1:2023"), tùy chọn.
+  version_label: z.string().trim().max(100).optional().default(''),
   force: z
     .union([z.boolean(), z.string()])
     .optional()
@@ -46,6 +68,8 @@ interface DocumentListRow {
   visibility: string;
   status: string;
   price: string | null;
+  standard_id: string | null;
+  current_file_id: string | null;
   created_by: string | null;
   created_at: Date;
   updated_at: Date;
@@ -58,6 +82,11 @@ interface DocumentListRow {
   page_count: number | null;
   preview_pages: number | null;
   preview_status: string | null;
+  version_label: string | null;
+  uploaded_by: string | null;
+  uploaded_at: Date | null;
+  code_check_status: string | null;
+  code_checked_at: Date | null;
   file_created_at: Date | null;
   category_ref_id: string | null;
   category_name: string | null;
@@ -77,6 +106,8 @@ function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
     status: row.status,
     // price: NULL ở Giai đoạn 1; khi có giá, pg trả numeric dạng chuỗi — giữ nguyên.
     price: row.price,
+    standard_id: row.standard_id,
+    current_file_id: row.current_file_id,
     created_by: row.created_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -97,6 +128,11 @@ function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
           page_count: row.page_count,
           preview_pages: row.preview_pages,
           preview_status: row.preview_status,
+          version_label: row.version_label,
+          uploaded_by: row.uploaded_by,
+          uploaded_at: row.uploaded_at,
+          code_check_status: row.code_check_status,
+          code_checked_at: row.code_checked_at,
           created_at: row.file_created_at
         }
       : null,
@@ -107,6 +143,10 @@ function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
 
 const patchVisibilitySchema = z.object({
   visibility: z.enum(['public', 'members', 'internal', 'private'])
+});
+
+const patchCurrentVersionSchema = z.object({
+  file_id: z.string().uuid()
 });
 
 function parseTags(raw: string): string[] {
@@ -132,7 +172,12 @@ export function registerDocumentRoutes(
   app.post('/api/documents', async (request, reply) => {
     const user = await getCurrentUser(pool, request.cookies);
     if (!user) throw unauthorized();
-    if (!canUpload(user)) throw forbidden('Bạn không có quyền upload tài liệu. Chỉ admin hoặc editor mới được upload.');
+    // Cổng thô: phải có ít nhất một trong hai quyền tải lên (tài liệu thường
+    // hoặc file tiêu chuẩn). Quyền chính xác kiểm tra lại sau khi đọc
+    // standard_code từ multipart.
+    if (!canUpload(user) && !canUploadStandardFile(user)) {
+      throw forbidden('Bạn không có quyền upload tài liệu. Chỉ admin hoặc editor mới được upload.');
+    }
 
     let tempPath: string | null = null;
     let finalRelativePath: string | null = null;
@@ -186,16 +231,37 @@ export function registerDocumentRoutes(
         language: fields.language ?? '',
         visibility: fields.visibility || 'internal',
         status: fields.status || 'draft',
+        standard_code: fields.standard_code ?? '',
+        standard_title_vi: fields.standard_title_vi ?? '',
+        standard_title_en: fields.standard_title_en ?? '',
+        standard_year: fields.standard_year,
+        version_label: fields.version_label ?? '',
         force: fields.force
       });
       if (!metaParsed.success) {
         throw badRequest('INVALID_METADATA', 'Thông tin tài liệu không hợp lệ. Vui lòng kiểm tra lại các trường bắt buộc.');
       }
       const meta = metaParsed.data;
+      const isStandardUpload = meta.standard_code.length > 0;
+      if (isStandardUpload) {
+        if (!canUploadStandardFile(user)) {
+          throw forbidden(
+            'Chỉ quản trị viên hoặc người trong tổ chức mới tải được file tiêu chuẩn.'
+          );
+        }
+      } else if (!canUpload(user)) {
+        throw forbidden('Bạn không có quyền upload tài liệu. Chỉ admin hoặc editor mới được upload.');
+      }
 
       const { displayName, extension: declaredExt } = sanitizeFilename(originalFilename);
       assertSizeWithinLimit(fileSize, cfg.maxUploadBytes);
       const detected = await detectFileTypeFromPath(tempPath, declaredExt);
+      if (isStandardUpload && detected.kind !== 'pdf') {
+        throw badRequest(
+          'STANDARD_FILE_MUST_BE_PDF',
+          'File tiêu chuẩn chỉ chấp nhận định dạng PDF.'
+        );
+      }
 
       if (meta.category_id) {
         const cat = await pool.query('SELECT id FROM categories WHERE id = $1', [meta.category_id]);
@@ -225,9 +291,47 @@ export function registerDocumentRoutes(
         );
       }
 
-      const docId = randomUUID();
+      // File tiêu chuẩn: tra/tạo bản ghi standards theo mã đã chuẩn hóa nhẹ
+      // (khớp normalized_code + code_key_raw), rồi tìm document đã gắn với
+      // tiêu chuẩn đó — một tiêu chuẩn = một document, upload lại là version mới.
+      let standardId: string | null = null;
+      let standardInfo: { id: string; normalized_code: string; code_display: string } | null = null;
+      let existingStandardDocId: string | null = null;
+      if (isStandardUpload) {
+        const resolved = await findOrCreateStandardForUpload(pool, meta.standard_code, {
+          titleVi: meta.standard_title_vi || null,
+          titleEn: meta.standard_title_en || null,
+          year: meta.standard_year
+        });
+        if (!resolved) {
+          throw badRequest(
+            'INVALID_STANDARD_CODE',
+            'Mã tiêu chuẩn không hợp lệ. Vui lòng kiểm tra lại số hiệu tiêu chuẩn.'
+          );
+        }
+        standardId = resolved.standard.id;
+        standardInfo = {
+          id: resolved.standard.id,
+          normalized_code: resolved.standard.normalized_code,
+          code_display: resolved.standard.code_display
+        };
+        const existingDoc = await pool.query(
+          'SELECT id FROM documents WHERE standard_id = $1 ORDER BY created_at ASC LIMIT 1',
+          [standardId]
+        );
+        existingStandardDocId = (existingDoc.rows[0] as { id: string } | undefined)?.id ?? null;
+      }
+
+      const docId = existingStandardDocId ?? randomUUID();
       const fileId = randomUUID();
-      const version = 1; // Giai đoạn 1 luôn là phiên bản 1
+      let version = 1;
+      if (existingStandardDocId) {
+        const next = await pool.query(
+          'SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM document_files WHERE document_id = $1',
+          [docId]
+        );
+        version = Number((next.rows[0] as { next_version: number }).next_version);
+      }
       finalRelativePath = storage.buildOriginalPath(docId, version, fileId, detected.extension);
 
       // Chuyển file tạm vào chỗ chính thức TRƯỚC khi ghi DB.
@@ -239,6 +343,42 @@ export function registerDocumentRoutes(
       let createdFile: Record<string, unknown>;
       try {
         const result = await withTransaction(pool, async (client) => {
+          const insertFile = async () =>
+            client.query(
+              `INSERT INTO document_files
+                 (id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, preview_status, version_label, uploaded_by, code_check_status)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL,$9,$10,$11,$12)
+               RETURNING id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, preview_status, version_label, uploaded_by, uploaded_at, code_check_status, created_at`,
+              [
+                fileId,
+                docId,
+                version,
+                finalRelativePath,
+                displayName,
+                detected.mimeType,
+                fileSize,
+                checksum,
+                // PDF -> job nền sẽ tạo bản xem trước; định dạng khác chưa hỗ trợ.
+                detected.kind === 'pdf' ? 'pending' : 'unsupported',
+                meta.version_label ? meta.version_label : null,
+                user.id,
+                // Chỉ file tiêu chuẩn mới vào hàng đợi kiểm tra mã.
+                isStandardUpload ? 'pending' : null
+              ]
+            );
+
+          if (existingStandardDocId) {
+            // Phiên bản sửa đổi của tiêu chuẩn đã có document: thêm file mới,
+            // con trỏ hiện hành chuyển sang bản mới (admin đặt lại được).
+            const fileRes = await insertFile();
+            const docRes = await client.query(
+              `UPDATE documents SET current_file_id = $1, updated_at = now() WHERE id = $2
+               RETURNING id, title, slug, description, category_id, doc_type, language, visibility, status, price, standard_id, current_file_id, created_by, created_at, updated_at`,
+              [fileId, docId]
+            );
+            return { doc: docRes.rows[0], file: fileRes.rows[0] };
+          }
+
           // Slug duy nhất: thử slug gốc, rồi -2, -3, ...
           const baseSlug = slugify(meta.title);
           let slug = baseSlug;
@@ -249,9 +389,9 @@ export function registerDocumentRoutes(
           }
           const docRes = await client.query(
             `INSERT INTO documents
-               (id, title, slug, description, category_id, doc_type, language, visibility, status, price, created_by)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL,$10)
-             RETURNING id, title, slug, description, category_id, doc_type, language, visibility, status, price, created_by, created_at, updated_at`,
+               (id, title, slug, description, category_id, doc_type, language, visibility, status, price, standard_id, created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL,$10,$11)
+             RETURNING id, title, slug, description, category_id, doc_type, language, visibility, status, price, standard_id, current_file_id, created_by, created_at, updated_at`,
             [
               docId,
               meta.title,
@@ -260,29 +400,20 @@ export function registerDocumentRoutes(
               meta.category_id ?? null,
               meta.doc_type ? meta.doc_type : null,
               meta.language ? meta.language : null,
-              meta.visibility,
+              // File tiêu chuẩn đã mua: ÉP visibility 'internal' (bỏ qua giá trị
+              // client gửi) — chỉ người trong tổ chức mới thấy được.
+              isStandardUpload ? 'internal' : meta.visibility,
               meta.status,
+              standardId,
               user.id
             ]
           );
-          const fileRes = await client.query(
-            `INSERT INTO document_files
-               (id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, preview_status)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL,$9)
-             RETURNING id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, preview_status, created_at`,
-            [
-              fileId,
-              docId,
-              version,
-              finalRelativePath,
-              displayName,
-              detected.mimeType,
-              fileSize,
-              checksum,
-              // PDF -> job nền sẽ tạo bản xem trước; định dạng khác chưa hỗ trợ.
-              detected.kind === 'pdf' ? 'pending' : 'unsupported'
-            ]
-          );
+          const fileRes = await insertFile();
+          await client.query('UPDATE documents SET current_file_id = $1 WHERE id = $2', [
+            fileId,
+            docId
+          ]);
+          (docRes.rows[0] as Record<string, unknown>).current_file_id = fileId;
           for (const tagName of tagNames) {
             const normalized = tagName.toLowerCase();
             const tagRes = await client.query(
@@ -319,9 +450,14 @@ export function registerDocumentRoutes(
           checksum_sha256: createdFile.checksum_sha256,
           page_count: createdFile.page_count,
           preview_status: createdFile.preview_status,
+          version_label: createdFile.version_label,
+          uploaded_by: createdFile.uploaded_by,
+          uploaded_at: createdFile.uploaded_at,
+          code_check_status: createdFile.code_check_status,
           created_at: createdFile.created_at
           // storage_path tương đối chỉ trả khi cần debug nội bộ? Không trả đường dẫn tuyệt đối.
         },
+        standard: standardInfo,
         tags: tagNames
       });
     } catch (err) {
@@ -370,10 +506,13 @@ export function registerDocumentRoutes(
       const listRes = await pool.query(
         `SELECT
            d.id, d.title, d.slug, d.description, d.category_id, d.doc_type, d.language,
-           d.visibility, d.status, d.price, d.created_by, d.created_at, d.updated_at,
+           d.visibility, d.status, d.price, d.standard_id, d.current_file_id,
+           d.created_by, d.created_at, d.updated_at,
            f.id AS file_id, f.document_id AS file_document_id, f.version AS file_version,
            f.original_filename, f.mime_type, f.file_size, f.page_count,
-           f.preview_pages, f.preview_status, f.created_at AS file_created_at,
+           f.preview_pages, f.preview_status, f.version_label, f.uploaded_by,
+           f.uploaded_at, f.code_check_status, f.code_checked_at,
+           f.created_at AS file_created_at,
            c.id AS category_ref_id, c.name AS category_name,
            COALESCE((
              SELECT array_agg(t.name ORDER BY t.name)
@@ -384,10 +523,12 @@ export function registerDocumentRoutes(
          LEFT JOIN LATERAL (
            SELECT df.id, df.document_id, df.version, df.original_filename,
                   df.mime_type, df.file_size, df.page_count, df.preview_pages,
-                  df.preview_status, df.created_at
+                  df.preview_status, df.version_label, df.uploaded_by,
+                  df.uploaded_at, df.code_check_status, df.code_checked_at,
+                  df.created_at
            FROM document_files df
            WHERE df.document_id = d.id
-           ORDER BY df.version DESC, df.created_at DESC
+           ORDER BY (df.id = d.current_file_id) DESC, df.version DESC, df.created_at DESC
            LIMIT 1
          ) f ON true
          LEFT JOIN categories c ON c.id = d.category_id
@@ -456,6 +597,61 @@ export function registerDocumentRoutes(
         newVisibility: row.visibility
       },
       'document visibility changed'
+    );
+
+    return reply.send({ document: row });
+  });
+
+  // Đặt lại phiên bản hiện hành về một file cũ — CHỈ admin. Con trỏ
+  // documents.current_file_id quyết định file nào được phục vụ ở danh sách,
+  // /preview và /view; các phiên bản khác vẫn giữ nguyên trên đĩa + DB.
+  app.patch('/api/documents/:id/current-version', async (request, reply) => {
+    const user = await getCurrentUser(pool, request.cookies);
+    if (!user) throw unauthorized();
+    if (user.role !== 'admin') {
+      throw forbidden('Chỉ quản trị viên mới đặt lại được phiên bản hiện hành');
+    }
+
+    const { id } = request.params as { id: string };
+    if (!z.string().uuid().safeParse(id).success) throw notFound();
+
+    const parsed = patchCurrentVersionSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      throw badRequest('INVALID_FILE_ID', 'Thiếu hoặc sai định dạng file_id của phiên bản cần đặt.');
+    }
+    const fileId = parsed.data.file_id;
+
+    const docRes = await pool.query(
+      'SELECT id, current_file_id FROM documents WHERE id = $1',
+      [id]
+    );
+    const doc = docRes.rows[0] as { id: string; current_file_id: string | null } | undefined;
+    if (!doc) throw notFound();
+
+    const fileRes = await pool.query(
+      'SELECT id, version FROM document_files WHERE id = $1 AND document_id = $2',
+      [fileId, id]
+    );
+    const file = fileRes.rows[0] as { id: string; version: number } | undefined;
+    if (!file) throw notFound();
+
+    const updated = await pool.query(
+      `UPDATE documents SET current_file_id = $1, updated_at = now() WHERE id = $2
+       RETURNING id, current_file_id, updated_at`,
+      [fileId, id]
+    );
+    const row = updated.rows[0] as { id: string; current_file_id: string; updated_at: Date };
+
+    request.log.info(
+      {
+        audit: 'document_current_version_changed',
+        userId: user.id,
+        documentId: row.id,
+        oldFileId: doc.current_file_id,
+        newFileId: row.current_file_id,
+        newVersion: file.version
+      },
+      'document current version changed'
     );
 
     return reply.send({ document: row });

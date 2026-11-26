@@ -116,10 +116,22 @@ export function canUpload(user: CurrentUser | null): boolean {
   return !!user && (user.role === 'admin' || user.role === 'editor');
 }
 
+/**
+ * Quyền tải FILE TIÊU CHUẨN lên (upload có standard_code): admin hoặc
+ * người trong tổ chức (user_type=internal, mọi role kể cả viewer nội bộ),
+ * và phải đang status=active. Upload tài liệu thường vẫn dùng canUpload
+ * (admin/editor) như cũ.
+ */
+export function canUploadStandardFile(user: CurrentUser | null): boolean {
+  return isActiveUser(user) && (user.role === 'admin' || user.userType === 'internal');
+}
+
 export interface DocumentAccessRow {
   status: string;
   visibility: string;
   created_by: string | null;
+  /** Mã tiêu chuẩn đã gắn (documents.standard_id); null/không có = tài liệu thường. */
+  standard_id?: string | null;
 }
 
 /** Người dùng có tài khoản đang hoạt động (status='active') hay không. */

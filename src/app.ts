@@ -15,7 +15,9 @@ import { registerCategoryRoutes } from './routes/categories.js';
 import { registerDocumentRoutes } from './routes/documents.js';
 import { registerPreviewRoutes } from './routes/previews.js';
 import { registerInternalStandardsRoutes } from './routes/internal-standards.js';
+import { registerStandardFileRoutes } from './routes/standards-files.js';
 import { startPreviewJob } from './previews/job.js';
+import { startCodeCheckJob } from './standards/code-check-job.js';
 import { SESSION_COOKIE as SESSION_COOKIE_NAME } from './auth/session.js';
 
 export interface CreateAppOptions {
@@ -28,6 +30,12 @@ export interface CreateAppOptions {
    * PREVIEW_JOB_ENABLED=true.
    */
   previewJob?: boolean;
+  /**
+   * Bật job nền kiểm tra mã chuẩn trong PDF. Mặc định TẮT khi tạo app qua
+   * createApp (test không bị vòng lặp nền quấy nhiễu); server.ts bật khi
+   * CODE_CHECK_JOB_ENABLED=true.
+   */
+  codeCheckJob?: boolean;
 }
 
 export async function createApp(opts: CreateAppOptions = {}) {
@@ -167,9 +175,17 @@ export async function createApp(opts: CreateAppOptions = {}) {
   registerDocumentRoutes(app, pool, storage, cfg);
   registerPreviewRoutes(app, pool, storage, cfg);
   registerInternalStandardsRoutes(app, pool, cfg);
+  registerStandardFileRoutes(app, pool);
 
   if (opts.previewJob) {
     const job = startPreviewJob(pool, storage, cfg, (message) => app.log.info(message));
+    app.addHook('onClose', async () => {
+      job.stop();
+    });
+  }
+
+  if (opts.codeCheckJob) {
+    const job = startCodeCheckJob(pool, storage, cfg, (message) => app.log.info(message));
     app.addHook('onClose', async () => {
       job.stop();
     });
