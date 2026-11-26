@@ -699,7 +699,7 @@ async function storeRelationEdge(
   db: Queryable,
   edge: RelationEdge,
   selfId: string,
-  source: StandardSource
+  source: StandardSource | 'MANUAL'
 ): Promise<void> {
   const resolveSide = async (
     codeRaw: string,
@@ -886,6 +886,36 @@ function escapeLike(text: string): string {
 }
 
 /**
+ * All relations of one standard, both directions, with the other end
+ * resolved against standards when possible. Shared by lookupByCode and
+ * the admin manual-metadata endpoints.
+ */
+export async function listStandardRelations(
+  db: Queryable,
+  standardId: string
+): Promise<LookupRelation[]> {
+  const res = await db.query<LookupRelation>(
+    `SELECT 'outgoing' AS direction, r.type, r.to_code_raw, r.to_norm, r.to_base_key,
+            r.to_id, r.from_id, r.source,
+            t.normalized_code AS other_normalized_code,
+            t.code_display AS other_code_display
+       FROM standard_relations r
+       LEFT JOIN standards t ON t.id = r.to_id
+      WHERE r.from_id = $1
+     UNION ALL
+     SELECT 'incoming' AS direction, r.type, r.to_code_raw, r.to_norm, r.to_base_key,
+            r.to_id, r.from_id, r.source,
+            f.normalized_code AS other_normalized_code,
+            f.code_display AS other_code_display
+       FROM standard_relations r
+       JOIN standards f ON f.id = r.from_id
+      WHERE r.to_id = $1`,
+    [standardId]
+  );
+  return res.rows;
+}
+
+/**
  * Look up by user-typed code, normalized with the same light function.
  * Matching is dual-key: normalized_code OR code_key_raw (the
  * pre-year-rewrite form), so "14 TCN 58-88" finds the record stored
@@ -948,41 +978,24 @@ export async function lookupByCode(
     'SELECT source, detail_url, fetched_at FROM standard_sources WHERE standard_id = $1 ORDER BY fetched_at DESC',
     [standard.id]
   );
-  const relations = await pool.query<LookupRelation>(
-    `SELECT 'outgoing' AS direction, r.type, r.to_code_raw, r.to_norm, r.to_base_key,
-            r.to_id, r.from_id, r.source,
-            t.normalized_code AS other_normalized_code,
-            t.code_display AS other_code_display
-       FROM standard_relations r
-       LEFT JOIN standards t ON t.id = r.to_id
-      WHERE r.from_id = $1
-     UNION ALL
-     SELECT 'incoming' AS direction, r.type, r.to_code_raw, r.to_norm, r.to_base_key,
-            r.to_id, r.from_id, r.source,
-            f.normalized_code AS other_normalized_code,
-            f.code_display AS other_code_display
-       FROM standard_relations r
-       JOIN standards f ON f.id = r.from_id
-      WHERE r.to_id = $1`,
-    [standard.id]
-  );
+  const relations = await listStandardRelations(pool, standard.id);
   // Convenience derivations: replacement edges are stored one-direction
   // only ("B replaces A"), so `replacedBy` is read off the INCOMING
   // 'replaces' edge. Codes prefer code_display (as upstream writes
   // them), then normalized_code, then the raw target text.
   const edgeCode = (r: LookupRelation): string =>
     r.other_code_display ?? r.other_normalized_code ?? r.to_code_raw;
-  const replaces = relations.rows
+  const replaces = relations
     .filter((r) => r.direction === 'outgoing' && r.type === 'replaces')
     .map(edgeCode);
-  const replacedByEdge = relations.rows.find(
+  const replacedByEdge = relations.find(
     (r) => r.direction === 'incoming' && r.type === 'replaces'
   );
   return {
     standard,
     editions: rows,
     sources: sources.rows,
-    relations: relations.rows,
+    relations,
     replaces,
     replacedBy: replacedByEdge ? edgeCode(replacedByEdge) : null
   };
@@ -1096,6 +1109,243 @@ export async function findOrCreateStandardForUpload(
   // Trùng khóa do request song song vừa tạo trước — tra lại.
   const raced = await findStandardByCode(db, codeRaw, meta.year ?? null);
   return raced ? { standard: raced, created: false } : null;
+}
+
+/**
+ * Manual standard metadata (admin curation, PUT /api/admin/standards/:code).
+ *
+ * The admin edits ONE standard by the code as typed. The merge key is
+ * the same light normalization as ingest; the existing record is found
+ * with the dual-key match (normalized_code OR code_key_raw, via
+ * findStandardByCode) so typing the pre-year-rewrite form ("14 TCN
+ * 58-88") updates the record stored as 14TCN58:1988 instead of
+ * creating a duplicate.
+ *
+ * Semantics:
+ * - field absent (undefined) -> keep the stored value;
+ * - field null -> clear it (titles/dates/ics/relations); status is
+ *   NOT NULL, so null status keeps the stored value;
+ * - detail_level always becomes 'manual' — from then on ingest never
+ *   overwrites the record (see upsertStandardRow/mergeStandardFields);
+ * - year comes only from the code's ":YYYY" or the explicit year
+ *   field — never guessed; a yearless edit of a yeared record keeps
+ *   the stored year;
+ * - org/number/part/amendment/suffix are filled best-effort from the
+ *   full parser (existing non-NULL values win); parse failure stores
+ *   NULLs + the parser's low confidence and never blocks the save;
+ * - needs_review is recomputed from this save's normalization: the
+ *   manual save IS the human review, so a clean code clears the flag
+ *   and a suspect one keeps it;
+ * - replaces/replaced_by, when provided, REPLACE the stored
+ *   single-direction 'replaces' edges (outgoing for replaces,
+ *   incoming for replaced_by) and are stored with source 'MANUAL'
+ *   under the usual rules (yeared unknown target -> stub, yearless
+ *   unknown -> to_norm + to_base_key with to_id NULL, prose
+ *   corrigendum kept raw). Self-edges are skipped.
+ */
+export interface ManualStandardInput {
+  /** Code as typed by the admin (route path param). */
+  code: string;
+  /** Explicit year field — used only when the code has no ":YYYY". */
+  year?: number | null;
+  title_vi?: string | null;
+  title_en?: string | null;
+  status?: StandardStatus | null;
+  issued_date?: string | null;
+  effective_date?: string | null;
+  ics?: string[] | null;
+  /** Codes this standard replaces: detail-style string or list. */
+  replaces?: string | string[] | null;
+  /** Codes that replace this standard: detail-style string or list. */
+  replaced_by?: string | string[] | null;
+}
+
+export type ManualUpsertResult =
+  | { ok: true; standard: StandardRow; created: boolean }
+  | { ok: false; reason: 'invalid-code' };
+
+const MANUAL_INSERT_SQL = `INSERT INTO standards (
+         org, number, part, year, amendment, suffix, normalized_code, base_key,
+         code_key_raw, code_display, title_vi, title_en, status, issued_date,
+         effective_date, ics, detail_level, parse_confidence, is_amendment,
+         amendment_year, is_draft, needs_review, last_verified_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+       ON CONFLICT (normalized_code) DO NOTHING
+       RETURNING *`;
+
+const MANUAL_UPDATE_SQL = `UPDATE standards SET
+       org = $2, number = $3, part = $4, year = $5, amendment = $6,
+       suffix = $7, code_key_raw = $8, code_display = $9, title_vi = $10,
+       title_en = $11, status = $12, issued_date = $13, effective_date = $14,
+       ics = $15, detail_level = $16, parse_confidence = $17, is_amendment = $18,
+       amendment_year = $19, is_draft = $20, needs_review = $21,
+       last_verified_at = CASE WHEN $22 THEN now() ELSE last_verified_at END,
+       updated_at = now()
+     WHERE id = $1
+     RETURNING *`;
+
+/** undefined = not provided (keep); null/''/[] = provided empty (clear). */
+function relationInputToString(
+  value: string | string[] | null | undefined
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return '';
+  return Array.isArray(value) ? value.join('*') : value;
+}
+
+function manualText(value: string | null | undefined, current: string | null): string | null {
+  if (value === undefined) return current;
+  return value?.trim() || null;
+}
+
+function manualIcs(
+  value: string[] | null | undefined,
+  current: string[] | null
+): string[] | null {
+  if (value === undefined) return current;
+  const cleaned = (value ?? []).map((v) => v.trim()).filter((v) => v.length > 0);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+async function updateManualRow(
+  db: Queryable,
+  existing: StandardRow,
+  input: ManualStandardInput,
+  keyed: LightNormalized & { normalized_code: string; base_key: string },
+  cols: ReturnType<typeof parserColumns>
+): Promise<StandardRow> {
+  const existingConfidence =
+    existing.parse_confidence !== null ? Number(existing.parse_confidence) : 0;
+  const updated = await db.query<StandardRow>(MANUAL_UPDATE_SQL, [
+    existing.id,
+    existing.org ?? cols.org,
+    existing.number ?? cols.number,
+    existing.part ?? cols.part,
+    keyed.year ?? existing.year,
+    existing.amendment ?? cols.amendment,
+    existing.suffix ?? cols.suffix,
+    existing.code_key_raw ?? keyed.code_key_raw,
+    existing.code_display,
+    manualText(input.title_vi, existing.title_vi),
+    manualText(input.title_en, existing.title_en),
+    input.status ?? existing.status,
+    manualText(input.issued_date, existing.issued_date),
+    manualText(input.effective_date, existing.effective_date),
+    manualIcs(input.ics, existing.ics),
+    'manual',
+    Math.max(existingConfidence, cols.parse_confidence),
+    keyed.is_amendment,
+    keyed.amendment_year ?? existing.amendment_year,
+    keyed.is_draft,
+    keyed.needs_review,
+    true
+  ]);
+  return updated.rows[0];
+}
+
+function isSelfRelationEdge(edge: RelationEdge, row: StandardRow): boolean {
+  if (edge.toRawOnly) return false;
+  const otherRaw = edge.fromCodeRaw === 'SELF' ? edge.toCodeRaw : edge.fromCodeRaw;
+  const otherYear = edge.fromCodeRaw === 'SELF' ? edge.toYear : edge.fromYear;
+  const light = lightNormalizeCode(otherRaw, otherYear);
+  if (light === null || light.normalized_code === null) return false;
+  return (
+    light.normalized_code === row.normalized_code ||
+    light.normalized_code === row.code_key_raw
+  );
+}
+
+async function applyManualRelations(
+  db: Queryable,
+  row: StandardRow,
+  input: ManualStandardInput
+): Promise<void> {
+  const replacesRaw = relationInputToString(input.replaces);
+  const replacedByRaw = relationInputToString(input.replaced_by);
+  if (replacesRaw === undefined && replacedByRaw === undefined) return;
+  if (replacesRaw !== undefined) {
+    await db.query('DELETE FROM standard_relations WHERE from_id = $1 AND type = $2', [
+      row.id,
+      'replaces'
+    ]);
+  }
+  if (replacedByRaw !== undefined) {
+    await db.query('DELETE FROM standard_relations WHERE to_id = $1 AND type = $2', [
+      row.id,
+      'replaces'
+    ]);
+  }
+  const edges = relationEdgesFromDetail({
+    code: row.code_display,
+    replaces: replacesRaw ?? null,
+    replacedBy: replacedByRaw ?? null
+  });
+  for (const edge of edges) {
+    if (isSelfRelationEdge(edge, row)) continue;
+    await storeRelationEdge(db, edge, row.id, 'MANUAL');
+  }
+}
+
+export async function upsertManualStandard(
+  pool: pg.Pool,
+  input: ManualStandardInput
+): Promise<ManualUpsertResult> {
+  const code = input.code.trim();
+  const light = lightNormalizeCode(code, input.year ?? null);
+  if (light === null || light.normalized_code === null || light.base_key === null) {
+    return { ok: false, reason: 'invalid-code' };
+  }
+  const keyed = light as LightNormalized & { normalized_code: string; base_key: string };
+  const cols = parserColumns(code);
+  return withTransaction(pool, async (client) => {
+    const existing = await findStandardByCode(client, code, input.year ?? null);
+    let row: StandardRow;
+    let created = false;
+    if (existing) {
+      row = await updateManualRow(client, existing, input, keyed, cols);
+    } else {
+      const inserted = await client.query<StandardRow>(MANUAL_INSERT_SQL, [
+        cols.org,
+        cols.number,
+        cols.part,
+        keyed.year,
+        cols.amendment,
+        cols.suffix,
+        keyed.normalized_code,
+        keyed.base_key,
+        keyed.code_key_raw,
+        code,
+        manualText(input.title_vi, null),
+        manualText(input.title_en, null),
+        input.status ?? 'Unknown',
+        manualText(input.issued_date, null),
+        manualText(input.effective_date, null),
+        manualIcs(input.ics, null),
+        'manual',
+        cols.parse_confidence,
+        keyed.is_amendment,
+        keyed.amendment_year,
+        keyed.is_draft,
+        keyed.needs_review,
+        new Date()
+      ]);
+      if (inserted.rows[0]) {
+        row = inserted.rows[0];
+        created = true;
+      } else {
+        // Concurrent save created the same normalized_code first.
+        const raced = await findStandardByCode(client, code, input.year ?? null);
+        if (!raced) {
+          throw new Error(
+            `upsertManualStandard: conflict without a visible row for ${keyed.normalized_code}`
+          );
+        }
+        row = await updateManualRow(client, raced, input, keyed, cols);
+      }
+    }
+    await applyManualRelations(client, row, input);
+    return { ok: true as const, standard: row, created };
+  });
 }
 
 /**
