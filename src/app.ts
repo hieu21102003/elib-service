@@ -11,6 +11,7 @@ import { AppError } from './errors.js';
 import { LocalDiskStorage } from './storage/local-disk.js';
 import { registerAuthRoutes, getCurrentUser } from './routes/auth.js';
 import { registerAdminUserRoutes } from './routes/admin-users.js';
+import { registerAdminStandardRoutes } from './routes/admin-standards.js';
 import { registerCategoryRoutes } from './routes/categories.js';
 import { registerDocumentRoutes } from './routes/documents.js';
 import { registerPreviewRoutes } from './routes/previews.js';
@@ -36,6 +37,11 @@ export interface CreateAppOptions {
    * CODE_CHECK_JOB_ENABLED=true.
    */
   codeCheckJob?: boolean;
+  /**
+   * Luồng ghi log tùy chọn (test chụp audit log qua đây). Mặc định ghi
+   * ra stdout như pino mặc định.
+   */
+  logStream?: NodeJS.WritableStream;
 }
 
 export async function createApp(opts: CreateAppOptions = {}) {
@@ -49,7 +55,7 @@ export async function createApp(opts: CreateAppOptions = {}) {
   // trong config đã được chuẩn hóa thành 1 (đúng một lớp Reverse_proxy).
   const trustProxyHops = cfg.trustProxy === true ? 1 : cfg.trustProxy;
   const app = Fastify({
-    logger: { level: cfg.logLevel },
+    logger: { level: cfg.logLevel, ...(opts.logStream ? { stream: opts.logStream } : {}) },
     trustProxy:
       trustProxyHops === false
         ? false
@@ -171,6 +177,7 @@ export async function createApp(opts: CreateAppOptions = {}) {
 
   registerAuthRoutes(app, pool, cfg);
   registerAdminUserRoutes(app, pool, cfg);
+  registerAdminStandardRoutes(app, pool);
   registerCategoryRoutes(app, pool);
   registerDocumentRoutes(app, pool, storage, cfg);
   registerPreviewRoutes(app, pool, storage, cfg);
