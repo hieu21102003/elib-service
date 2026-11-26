@@ -101,6 +101,16 @@ export interface AppConfig {
   previewJobEnabled: boolean;
   /** Đường dẫn binary qpdf để xử lý PDF mã hóa có user password rỗng (QPDF_PATH, mặc định 'qpdf'). */
   qpdfPath: string;
+  /** Số trang đầu được trích chữ để kiểm tra mã chuẩn (CODE_CHECK_PAGES, mặc định 3). */
+  codeCheckPages: number;
+  /** Chu kỳ poll của job kiểm tra mã chuẩn, ms (CODE_CHECK_JOB_INTERVAL_MS, mặc định 5000). */
+  codeCheckJobIntervalMs: number;
+  /** Job kiểm tra mã 'processing' quá số phút này được nhả lại thành 'pending' (CODE_CHECK_LOCK_STALE_MINUTES, mặc định 15). */
+  codeCheckLockStaleMinutes: number;
+  /** Timeout kiểm tra mã cho mỗi file, ms (CODE_CHECK_TIMEOUT_MS, mặc định 60000). */
+  codeCheckTimeoutMs: number;
+  /** Bật job nền kiểm tra mã chuẩn trong server (CODE_CHECK_JOB_ENABLED, mặc định true). */
+  codeCheckJobEnabled: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -138,7 +148,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     previewLockStaleMinutes: intFromEnv('PREVIEW_LOCK_STALE_MINUTES', 15),
     previewFileTimeoutMs: intFromEnv('PREVIEW_FILE_TIMEOUT_MS', 60000),
     previewJobEnabled: boolFromEnv('PREVIEW_JOB_ENABLED', true),
-    qpdfPath: env.QPDF_PATH?.trim() || 'qpdf'
+    qpdfPath: env.QPDF_PATH?.trim() || 'qpdf',
+    codeCheckPages: intFromEnv('CODE_CHECK_PAGES', 3),
+    codeCheckJobIntervalMs: intFromEnv('CODE_CHECK_JOB_INTERVAL_MS', 5000),
+    codeCheckLockStaleMinutes: intFromEnv('CODE_CHECK_LOCK_STALE_MINUTES', 15),
+    codeCheckTimeoutMs: intFromEnv('CODE_CHECK_TIMEOUT_MS', 60000),
+    codeCheckJobEnabled: boolFromEnv('CODE_CHECK_JOB_ENABLED', true)
   };
 }
 

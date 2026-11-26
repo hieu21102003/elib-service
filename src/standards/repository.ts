@@ -989,6 +989,116 @@ export async function lookupByCode(
 }
 
 /**
+ * Tra một tiêu chuẩn theo mã người dùng gõ/hiển thị, khớp CẢ HAI khóa
+ * normalized_code và code_key_raw (ưu tiên khớp normalized_code chính xác
+ * khi cả hai cùng trúng). Trả null khi mã không chuẩn hóa được hoặc chưa
+ * có bản ghi — không đoán, không tạo khóa giả.
+ */
+export async function findStandardByCode(
+  db: Queryable,
+  codeRaw: string,
+  yearField?: number | null
+): Promise<StandardRow | null> {
+  const light = lightNormalizeCode(codeRaw, yearField ?? null);
+  if (light === null || light.normalized_code === null) return null;
+  // Ứng viên khóa: khóa chuẩn hóa + biến thể dash-year -> :YYYY khi mã
+  // hiển thị dùng "-YYYY" mà không có trường year đi kèm (vd "GB/T
+  // 19001-2016" phải khớp bản ghi GBT19001:2016 do ingest tạo với yearField).
+  const candidates = [light.normalized_code];
+  const dashYear = /-(\d{4})$/.exec(light.normalized_code);
+  if (dashYear && !light.normalized_code.includes(':')) {
+    candidates.push(`${light.normalized_code.slice(0, dashYear.index)}:${dashYear[1]}`);
+  }
+  const res = await db.query<StandardRow>(
+    `SELECT * FROM standards
+      WHERE normalized_code = ANY($1) OR code_key_raw = ANY($1)
+      ORDER BY (normalized_code = $2) DESC, (normalized_code = ANY($1)) DESC
+      LIMIT 1`,
+    [candidates, light.normalized_code]
+  );
+  return res.rows[0] ?? null;
+}
+
+export interface UploadStandardMeta {
+  titleVi?: string | null;
+  titleEn?: string | null;
+  /** Năm ban hành do client gửi kèm (chỉ dùng khi mã chưa có ":YYYY"). */
+  year?: number | null;
+}
+
+/**
+ * Tìm hoặc tạo bản ghi tiêu chuẩn cho luồng upload file tiêu chuẩn:
+ * - Đã có bản ghi (khớp normalized_code/code_key_raw) -> dùng lại, chỉ điền
+ *   tiêu đề còn trống từ metadata client gửi (không ghi đè tiêu đề đã có).
+ * - Chưa có -> tạo mới: detail_level 'summary' khi có tiêu đề, ngược lại
+ *   'stub'. Năm/phần lấy từ light-normalize + parser best-effort — không
+ *   bao giờ bịa năm/phần khi mã không chứa.
+ * Trả null khi mã không chuẩn hóa được (route sẽ trả 400).
+ */
+export async function findOrCreateStandardForUpload(
+  db: Queryable,
+  codeRaw: string,
+  meta: UploadStandardMeta = {}
+): Promise<{ standard: StandardRow; created: boolean } | null> {
+  const light = lightNormalizeCode(codeRaw, meta.year ?? null);
+  if (light === null || light.normalized_code === null || light.base_key === null) {
+    return null;
+  }
+  const existing = await findStandardByCode(db, codeRaw, meta.year ?? null);
+  const titleVi = meta.titleVi?.trim() || null;
+  const titleEn = meta.titleEn?.trim() || null;
+  if (existing) {
+    if ((titleVi && !existing.title_vi) || (titleEn && !existing.title_en)) {
+      const updated = await db.query<StandardRow>(
+        `UPDATE standards
+            SET title_vi = COALESCE(title_vi, $2),
+                title_en = COALESCE(title_en, $3),
+                updated_at = now()
+          WHERE id = $1
+          RETURNING *`,
+        [existing.id, titleVi, titleEn]
+      );
+      return { standard: updated.rows[0], created: false };
+    }
+    return { standard: existing, created: false };
+  }
+  const cols = parserColumns(codeRaw);
+  const inserted = await db.query<StandardRow>(
+    `INSERT INTO standards (
+       org, number, part, year, amendment, suffix, normalized_code, base_key,
+       code_key_raw, code_display, title_vi, title_en, detail_level,
+       parse_confidence, is_amendment, amendment_year, is_draft, needs_review
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+     ON CONFLICT (normalized_code) DO NOTHING
+     RETURNING *`,
+    [
+      cols.org,
+      cols.number,
+      cols.part,
+      light.year,
+      cols.amendment,
+      cols.suffix,
+      light.normalized_code,
+      light.base_key,
+      light.code_key_raw,
+      codeRaw.trim(),
+      titleVi,
+      titleEn,
+      titleVi || titleEn ? 'summary' : 'stub',
+      cols.parse_confidence,
+      light.is_amendment,
+      light.amendment_year,
+      light.is_draft,
+      light.needs_review
+    ]
+  );
+  if (inserted.rows[0]) return { standard: inserted.rows[0], created: true };
+  // Trùng khóa do request song song vừa tạo trước — tra lại.
+  const raced = await findStandardByCode(db, codeRaw, meta.year ?? null);
+  return raced ? { standard: raced, created: false } : null;
+}
+
+/**
  * Append one search_log row. Called ONLY from the ingest path
  * (lookup never logs). No user id / IP is stored.
  */
