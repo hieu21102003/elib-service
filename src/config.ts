@@ -111,6 +111,18 @@ export interface AppConfig {
   codeCheckTimeoutMs: number;
   /** Bật job nền kiểm tra mã chuẩn trong server (CODE_CHECK_JOB_ENABLED, mặc định true). */
   codeCheckJobEnabled: boolean;
+  /** Bật job nền trích xuất mục lục PDF trong server (TOC_JOB_ENABLED, mặc định true). */
+  tocJobEnabled: boolean;
+  /** Chu kỳ poll hàng đợi mục lục, ms (TOC_JOB_INTERVAL_MS, mặc định 5000). */
+  tocJobIntervalMs: number;
+  /** Job mục lục 'processing' quá số phút này được nhả/xử lý treo (TOC_LOCK_STALE_MINUTES, mặc định 15). */
+  tocLockStaleMinutes: number;
+  /** Timeout xử lý mục lục cho mỗi file, ms (TOC_FILE_TIMEOUT_MS, mặc định 120000). */
+  tocFileTimeoutMs: number;
+  /** Giới hạn dung lượng tối đa cho job mục lục, MB (TOC_MAX_FILE_MB, mặc định 50). */
+  tocMaxFileMb: number;
+  /** Chỉ tự động trích xuất mục lục cho file gắn tiêu chuẩn (TOC_STANDARDS_ONLY, mặc định true). */
+  tocStandardsOnly: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -153,7 +165,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     codeCheckJobIntervalMs: intFromEnv('CODE_CHECK_JOB_INTERVAL_MS', 5000),
     codeCheckLockStaleMinutes: intFromEnv('CODE_CHECK_LOCK_STALE_MINUTES', 15),
     codeCheckTimeoutMs: intFromEnv('CODE_CHECK_TIMEOUT_MS', 60000),
-    codeCheckJobEnabled: boolFromEnv('CODE_CHECK_JOB_ENABLED', true)
+    codeCheckJobEnabled: boolFromEnv('CODE_CHECK_JOB_ENABLED', true),
+    tocJobEnabled: boolFromEnv('TOC_JOB_ENABLED', true),
+    tocJobIntervalMs: intFromEnv('TOC_JOB_INTERVAL_MS', 5000),
+    tocLockStaleMinutes: intFromEnv('TOC_LOCK_STALE_MINUTES', 15),
+    tocFileTimeoutMs: intFromEnv('TOC_FILE_TIMEOUT_MS', 120000),
+    tocMaxFileMb: intFromEnv('TOC_MAX_FILE_MB', 50),
+    tocStandardsOnly: boolFromEnv('TOC_STANDARDS_ONLY', true)
   };
 }
 

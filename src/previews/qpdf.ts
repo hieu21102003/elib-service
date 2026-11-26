@@ -213,7 +213,7 @@ export async function decryptPdfWithQpdf(
   const runner = opts.runner ?? spawnQpdf;
   const { exitCode, stderr } = await runner(
     bin,
-    ['--password=', inputPath, outputTempPath],
+    ['--password=', '--decrypt', inputPath, outputTempPath],
     opts.timeoutMs
   );
   if (exitCode !== 0 && exitCode !== 3) {

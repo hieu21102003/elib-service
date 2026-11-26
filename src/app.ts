@@ -16,8 +16,10 @@ import { registerDocumentRoutes } from './routes/documents.js';
 import { registerPreviewRoutes } from './routes/previews.js';
 import { registerInternalStandardsRoutes } from './routes/internal-standards.js';
 import { registerStandardFileRoutes } from './routes/standards-files.js';
+import { registerTocRoutes } from './routes/toc.js';
 import { startPreviewJob } from './previews/job.js';
 import { startCodeCheckJob } from './standards/code-check-job.js';
+import { startTocJob } from './toc/job.js';
 import { SESSION_COOKIE as SESSION_COOKIE_NAME } from './auth/session.js';
 
 export interface CreateAppOptions {
@@ -36,6 +38,12 @@ export interface CreateAppOptions {
    * CODE_CHECK_JOB_ENABLED=true.
    */
   codeCheckJob?: boolean;
+  /**
+   * Bật job nền trích xuất mục lục PDF. Mặc định TẮT khi tạo app qua
+   * createApp (test không bị vòng lặp nền quấy nhiễu); server.ts bật khi
+   * TOC_JOB_ENABLED=true.
+   */
+  tocJob?: boolean;
 }
 
 export async function createApp(opts: CreateAppOptions = {}) {
@@ -176,6 +184,7 @@ export async function createApp(opts: CreateAppOptions = {}) {
   registerPreviewRoutes(app, pool, storage, cfg);
   registerInternalStandardsRoutes(app, pool, cfg);
   registerStandardFileRoutes(app, pool);
+  registerTocRoutes(app, pool, cfg);
 
   if (opts.previewJob) {
     const job = startPreviewJob(pool, storage, cfg, (message) => app.log.info(message));
@@ -186,6 +195,13 @@ export async function createApp(opts: CreateAppOptions = {}) {
 
   if (opts.codeCheckJob) {
     const job = startCodeCheckJob(pool, storage, cfg, (message) => app.log.info(message));
+    app.addHook('onClose', async () => {
+      job.stop();
+    });
+  }
+
+  if (opts.tocJob) {
+    const job = startTocJob(pool, storage, cfg, (message) => app.log.info(message));
     app.addHook('onClose', async () => {
       job.stop();
     });

@@ -90,6 +90,7 @@ class FakePool {
   tokens = new Map<string, CurrentUser>();
   documents = new Map<string, Row>();
   files = new Map<string, Row>();
+  tocs = new Map<string, Row>();
   standards = new Map<string, Row>();
   tagsByNormalized = new Map<string, Row>();
   docTags = new Map<string, Set<string>>();
@@ -103,6 +104,7 @@ class FakePool {
   reset(): void {
     this.documents.clear();
     this.files.clear();
+    this.tocs.clear();
     this.standards.clear();
     this.tagsByNormalized.clear();
     this.docTags.clear();
@@ -205,6 +207,10 @@ class FakePool {
       code_check_status: f?.code_check_status ?? null,
       code_checked_at: f?.code_checked_at ?? null,
       file_created_at: f?.created_at ?? null,
+      toc_job_status: (f ? this.tocs.get(String(f.id))?.job_status : null) ?? null,
+      toc_auto_status: (f ? this.tocs.get(String(f.id))?.auto_status : null) ?? null,
+      toc_manual_override: (f ? this.tocs.get(String(f.id))?.manual_override : null) ?? false,
+      toc_algorithm_version: (f ? this.tocs.get(String(f.id))?.algorithm_version : null) ?? null,
       category_ref_id: null,
       category_name: null,
       tag_names: this.tagNamesOf(String(doc.id))
@@ -418,6 +424,20 @@ class FakePool {
       return { rows: [{ ...row }] };
     }
 
+    if (s.includes('INSERT INTO document_file_tocs')) {
+      const [file_id, job_status] = params as [string, string];
+      if (!this.tocs.has(file_id)) {
+        this.tocs.set(file_id, {
+          file_id,
+          job_status: job_status ?? 'pending',
+          auto_status: null,
+          manual_override: false,
+          algorithm_version: null
+        });
+      }
+      return { rows: [] };
+    }
+
     if (s.includes('UPDATE documents SET current_file_id = $1, updated_at = now() WHERE id = $2')) {
       const doc = this.documents.get(String(params[1]));
       if (!doc) return { rows: [] };
@@ -488,9 +508,24 @@ class FakePool {
       };
     }
 
-    // Endpoint files của tiêu chuẩn: danh sách file theo document
-    if (s.includes('FROM document_files WHERE document_id = $1') && s.includes('ORDER BY version DESC')) {
-      return { rows: this.filesOf(String(params[0])).map((f) => ({ ...f })) };
+    // Endpoint files của tiêu chuẩn: danh sách file theo document (+ trạng thái TOC nhẹ)
+    if (
+      s.includes('FROM document_files df') &&
+      s.includes('WHERE df.document_id = $1') &&
+      s.includes('ORDER BY df.version DESC')
+    ) {
+      return {
+        rows: this.filesOf(String(params[0])).map((f) => {
+          const toc = this.tocs.get(String(f.id));
+          return {
+            ...f,
+            toc_job_status: toc?.job_status ?? null,
+            toc_auto_status: toc?.auto_status ?? null,
+            toc_manual_override: toc?.manual_override ?? false,
+            toc_algorithm_version: toc?.algorithm_version ?? null
+          };
+        })
+      };
     }
 
     // Danh sách tài liệu (đếm + liệt kê)

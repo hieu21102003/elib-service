@@ -47,6 +47,10 @@ interface StandardFileRow {
   code_check_status: string | null;
   code_checked_at: Date | null;
   created_at: Date;
+  toc_job_status?: string | null;
+  toc_auto_status?: string | null;
+  toc_manual_override?: boolean | null;
+  toc_algorithm_version?: string | null;
 }
 
 function mapFile(row: StandardFileRow) {
@@ -65,7 +69,11 @@ function mapFile(row: StandardFileRow) {
     preview_status: row.preview_status,
     code_check_status: row.code_check_status,
     code_checked_at: row.code_checked_at,
-    created_at: row.created_at
+    created_at: row.created_at,
+    toc_job_status: row.toc_job_status ?? null,
+    toc_status: row.toc_manual_override === true ? 'ok' : (row.toc_auto_status ?? null),
+    toc_has_manual: row.toc_manual_override === true,
+    toc_algorithm_version: row.toc_algorithm_version ?? null
   };
 }
 
@@ -114,11 +122,15 @@ export function registerStandardFileRoutes(app: FastifyInstance, pool: pg.Pool):
       }
 
       const filesRes = await pool.query(
-        `SELECT id, document_id, version, version_label, uploaded_by, uploaded_at,
-                original_filename, mime_type, file_size, page_count, preview_pages,
-                preview_status, code_check_status, code_checked_at, created_at
-         FROM document_files WHERE document_id = $1
-         ORDER BY version DESC, created_at DESC`,
+        `SELECT df.id, df.document_id, df.version, df.version_label, df.uploaded_by, df.uploaded_at,
+                df.original_filename, df.mime_type, df.file_size, df.page_count, df.preview_pages,
+                df.preview_status, df.code_check_status, df.code_checked_at, df.created_at,
+                t.job_status AS toc_job_status, t.auto_status AS toc_auto_status,
+                t.manual_override AS toc_manual_override, t.algorithm_version AS toc_algorithm_version
+         FROM document_files df
+         LEFT JOIN document_file_tocs t ON t.file_id = df.id
+         WHERE df.document_id = $1
+         ORDER BY df.version DESC, df.created_at DESC`,
         [doc.id]
       );
       const files = filesRes.rows as StandardFileRow[];

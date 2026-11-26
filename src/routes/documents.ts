@@ -88,6 +88,10 @@ interface DocumentListRow {
   code_check_status: string | null;
   code_checked_at: Date | null;
   file_created_at: Date | null;
+  toc_job_status?: string | null;
+  toc_auto_status?: string | null;
+  toc_manual_override?: boolean | null;
+  toc_algorithm_version?: string | null;
   category_ref_id: string | null;
   category_name: string | null;
   tag_names: string[] | null;
@@ -133,7 +137,12 @@ function mapDocumentListRow(row: DocumentListRow, user: CurrentUser | null) {
           uploaded_at: row.uploaded_at,
           code_check_status: row.code_check_status,
           code_checked_at: row.code_checked_at,
-          created_at: row.file_created_at
+          created_at: row.file_created_at,
+          toc_job_status: row.toc_job_status ?? null,
+          toc_status:
+            row.toc_manual_override === true ? 'ok' : (row.toc_auto_status ?? null),
+          toc_has_manual: row.toc_manual_override === true,
+          toc_algorithm_version: row.toc_algorithm_version ?? null
         }
       : null,
     tags: row.tag_names ?? [],
@@ -343,8 +352,8 @@ export function registerDocumentRoutes(
       let createdFile: Record<string, unknown>;
       try {
         const result = await withTransaction(pool, async (client) => {
-          const insertFile = async () =>
-            client.query(
+          const insertFile = async () => {
+            const fileRes = await client.query(
               `INSERT INTO document_files
                  (id, document_id, version, storage_path, original_filename, mime_type, file_size, checksum_sha256, page_count, preview_status, version_label, uploaded_by, code_check_status)
                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NULL,$9,$10,$11,$12)
@@ -366,6 +375,17 @@ export function registerDocumentRoutes(
                 isStandardUpload ? 'pending' : null
               ]
             );
+            // Chỉ xếp hàng mục lục cho PDF thuộc phạm vi cấu hình (mặc định: file tiêu chuẩn).
+            if (detected.kind === 'pdf' && (isStandardUpload || !cfg.tocStandardsOnly)) {
+              await client.query(
+                `INSERT INTO document_file_tocs (file_id, job_status)
+                 VALUES ($1, 'pending')
+                 ON CONFLICT (file_id) DO NOTHING`,
+                [fileId]
+              );
+            }
+            return fileRes;
+          };
 
           if (existingStandardDocId) {
             // Phiên bản sửa đổi của tiêu chuẩn đã có document: thêm file mới,
@@ -513,6 +533,8 @@ export function registerDocumentRoutes(
            f.preview_pages, f.preview_status, f.version_label, f.uploaded_by,
            f.uploaded_at, f.code_check_status, f.code_checked_at,
            f.created_at AS file_created_at,
+           toc.job_status AS toc_job_status, toc.auto_status AS toc_auto_status,
+           toc.manual_override AS toc_manual_override, toc.algorithm_version AS toc_algorithm_version,
            c.id AS category_ref_id, c.name AS category_name,
            COALESCE((
              SELECT array_agg(t.name ORDER BY t.name)
@@ -531,6 +553,7 @@ export function registerDocumentRoutes(
            ORDER BY (df.id = d.current_file_id) DESC, df.version DESC, df.created_at DESC
            LIMIT 1
          ) f ON true
+         LEFT JOIN document_file_tocs toc ON toc.file_id = f.id
          LEFT JOIN categories c ON c.id = d.category_id
          WHERE ${whereSql}
          ORDER BY d.created_at DESC

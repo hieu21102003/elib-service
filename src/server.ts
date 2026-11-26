@@ -5,7 +5,8 @@ const cfg = loadConfig();
 const app = await createApp({
   config: cfg,
   previewJob: cfg.previewJobEnabled,
-  codeCheckJob: cfg.codeCheckJobEnabled
+  codeCheckJob: cfg.codeCheckJobEnabled,
+  tocJob: cfg.tocJobEnabled
 });
 
 try {
